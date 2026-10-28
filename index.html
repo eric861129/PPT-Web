@@ -38,6 +38,11 @@
         <h1 id="deck-title" class="deck-title"></h1>
         <p id="page-indicator" class="page-indicator" aria-live="polite"></p>
         <div class="topbar-actions">
+          <button id="btn-remote" type="button" class="btn btn-remote" title="手機遙控（Q）">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+            手機遙控
+            <span id="remote-count" class="badge" hidden></span>
+          </button>
           <button id="btn-show-current" type="button" class="btn">從目前頁放映</button>
           <button id="btn-show-start" type="button" class="btn btn-primary">從頭放映</button>
           <button id="btn-close" type="button" class="btn btn-ghost">關閉簡報</button>
@@ -77,8 +82,41 @@
         <span><kbd>B</kbd> 黑幕</span>
         <span><kbd>W</kbd> 白幕</span>
         <span>數字 + <kbd>Enter</kbd> 跳頁</span>
+        <span><kbd>Q</kbd> 手機遙控</span>
       </footer>
+
+      <p id="toast" class="toast" role="status" hidden></p>
     </div>
+
+    <dialog id="pair-dialog" class="pair-dialog" aria-labelledby="pair-title">
+      <header class="pair-head">
+        <h2 id="pair-title">手機遙控</h2>
+        <button type="button" class="tool pair-x" data-close aria-label="關閉">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+      <div class="pair-body">
+        <div id="pair-qr" class="pair-qr" role="img" aria-label="手機遙控網址的 QR Code"></div>
+        <div class="pair-info">
+          <ol class="pair-steps">
+            <li>用手機相機掃描 QR Code</li>
+            <li>打開跳出的連結，就能翻頁、開黑幕、看備忘稿</li>
+          </ol>
+          <p id="pair-status" class="pair-status" data-status="starting">
+            <span class="status-dot" aria-hidden="true"></span><span id="pair-status-text"></span>
+          </p>
+          <div class="pair-url">
+            <input id="pair-url" type="text" readonly aria-label="手機遙控網址" />
+            <button id="pair-copy" type="button" class="btn">複製</button>
+          </div>
+          <p class="pair-note">這個視窗開著時，新的手機才能配對；配對過的手機斷線後會自動連回來。手機和電腦都要能上網，現場網路不穩時，讓電腦連手機熱點最穩。</p>
+        </div>
+      </div>
+      <footer class="pair-foot">
+        <button id="pair-forget" type="button" class="btn btn-ghost" hidden>中斷所有手機</button>
+        <button type="button" class="btn btn-primary" data-close>完成</button>
+      </footer>
+    </dialog>
 
     <script type="module" src="./src/display/main.ts"></script>
   </body>

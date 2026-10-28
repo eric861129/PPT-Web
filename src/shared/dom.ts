@@ -1,3 +1,6 @@
+// 電腦端和手機端共用的 DOM 小工具
+import type { NoteParagraph } from '../core/deck'
+
 export function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   const el = document.getElementById(id)
   if (!el) throw new Error(`#${id} not found`)
@@ -13,6 +16,24 @@ export function listen<E extends Event = Event>(
 ): () => void {
   target.addEventListener(type, handler as EventListener, options)
   return () => target.removeEventListener(type, handler as EventListener, options)
+}
+
+/** 備忘稿段落。文字一律用 textContent 放進去，檔案裡的內容不會被當成 HTML */
+export function renderNoteParagraphs(paragraphs: readonly NoteParagraph[]): HTMLElement[] {
+  return paragraphs.map(({ text, level }) => {
+    const p = document.createElement('p')
+    p.className = text ? 'note' : 'note is-blank'
+    if (level) p.style.setProperty('--level', String(level))
+    p.textContent = text
+    return p
+  })
+}
+
+export function messageParagraph(text: string, className = 'notes-empty'): HTMLElement {
+  const p = document.createElement('p')
+  p.className = className
+  p.textContent = text
+  return p
 }
 
 // 使用者偏好存在 localStorage；無痕模式或被封鎖時就當作沒有，不影響功能

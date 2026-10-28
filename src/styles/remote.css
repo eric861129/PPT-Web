@@ -1,26 +1,353 @@
-.remote-placeholder {
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.remote {
+  --aspect: 1.7778;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* 黑幕或白幕開著時，整個畫面外框變紅，避免忘了關 */
+.remote::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border: 4px solid transparent;
+  pointer-events: none;
+  transition: border-color 0.15s;
+}
+
+.remote:is([data-blank="black"], [data-blank="white"])::after {
+  border-color: #e5484d;
+}
+
+/* ---------- 上方狀態列 ---------- */
+
+.r-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+.r-top p {
+  margin: 0;
+}
+
+.r-conn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.r-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.remote[data-conn="connected"] .r-dot {
+  background: #3ecf8e;
+}
+
+.remote[data-conn="reconnecting"] .r-dot {
+  background: #f2c46d;
+  animation: r-pulse 1s ease-in-out infinite alternate;
+}
+
+.remote[data-conn="rejected"] .r-dot {
+  background: var(--danger);
+}
+
+@keyframes r-pulse {
+  to {
+    opacity: 0.3;
+  }
+}
+
+.r-page {
+  font-size: 18px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.r-time {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- 縮圖 ---------- */
+
+.r-slides {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 10px;
+  align-items: start;
+  padding: 0 16px;
+}
+
+.r-slide {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+}
+
+.r-frame {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #24262b;
+  aspect-ratio: var(--aspect);
+}
+
+.r-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.r-frame-text {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.r-next figcaption {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.remote:is([data-blank="black"], [data-blank="white"]) .r-current::after {
+  content: "黑幕中";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font-weight: 600;
+  aspect-ratio: var(--aspect);
+}
+
+.remote[data-blank="white"] .r-current::after {
+  content: "白幕中";
+}
+
+/* ---------- 備忘稿 ---------- */
+
+.r-notes {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  margin: 12px 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.r-notes-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 0 14px;
+}
+
+.r-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.r-size-btn {
+  min-width: 44px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.r-size-btn:active {
+  background: var(--panel-2);
+}
+
+.r-warning {
+  margin: 4px 14px 0;
+  color: #f2c46d;
+  font-size: 12px;
+}
+
+.r-notes-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 14px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: var(--notes-size, 22px);
+  line-height: 1.6;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ---------- 按鈕 ---------- */
+
+.r-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 8px;
+  padding: 12px 16px 14px;
+}
+
+.r-btn {
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100svh;
-  padding: 32px 24px;
+  gap: 4px;
+  height: 76px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+  transition: transform 0.06s, background-color 0.1s;
+}
+
+.r-btn:active {
+  background: #2b2d33;
+  transform: scale(0.97);
+}
+
+.r-btn-next {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.r-btn-next:active {
+  background: #3d6ae0;
+}
+
+.remote:is([data-blank="black"], [data-blank="white"]) .r-btn-blank {
+  border-color: #e5484d;
+  background: #e5484d;
+  color: #fff;
+}
+
+.remote:not([data-conn="connected"]) .r-controls {
+  opacity: 0.4;
+}
+
+/* ---------- 遮罩訊息 ---------- */
+
+.r-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.r-overlay-card {
+  max-width: 320px;
   text-align: center;
 }
 
-.remote-placeholder h1 {
-  margin: 20px 0 8px;
-  font-size: 24px;
+.r-overlay-card h1 {
+  margin: 16px 0 8px;
+  font-size: 22px;
   font-weight: 650;
 }
 
-.remote-placeholder p {
-  max-width: 320px;
-  margin: 0 0 8px;
+.r-overlay-card p {
+  margin: 0 0 20px;
   color: var(--text-2);
+  line-height: 1.6;
 }
 
-.remote-placeholder .muted {
-  color: var(--text-3);
-  font-size: 14px;
+.r-overlay-card .r-btn {
+  height: 52px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ---------- 橫拿手機：縮圖在左、備忘稿在右 ---------- */
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .remote {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "top top"
+      "slides notes"
+      "controls controls";
+  }
+
+  .r-top {
+    grid-area: top;
+    padding-block: 6px;
+  }
+
+  .r-slides {
+    grid-area: slides;
+    padding-right: 0;
+  }
+
+  .r-notes {
+    grid-area: notes;
+    margin: 0 16px 0 12px;
+  }
+
+  .r-controls {
+    grid-area: controls;
+    padding-block: 8px;
+  }
+
+  .r-btn {
+    height: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remote[data-conn="reconnecting"] .r-dot {
+    animation: none;
+  }
 }

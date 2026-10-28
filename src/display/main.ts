@@ -2,11 +2,18 @@ import '../styles/base.css'
 import '../styles/display.css'
 import { alignNotes, type DeckNotes, type SlideSource } from '../core/deck'
 import { parsePptx, PptxError } from '../core/pptx'
+import { peerTransport } from '../net/peerjs'
 import { deckTitle, pickDeckFiles } from './loader'
+import { PairingDialog } from './pairing-dialog'
+import { RemoteHost } from './remote-host'
 import { openPdf } from './renderer'
 import { DeckSession } from './session'
 
 const APP_TITLE = document.title
+
+// 手機遙控主機跟著頁面活著，換簡報時手機不用重新配對。開啟第一份簡報時才開始連線。
+const remote = new RemoteHost(peerTransport, { pageUrl: location.href })
+const pairing = new PairingDialog(remote)
 
 const startScreen = document.getElementById('start')!
 const deckScreen = document.getElementById('deck')!
@@ -53,7 +60,7 @@ async function openFiles(files: File[]): Promise<void> {
     // 先讓畫面可見，SlideView 才量得到尺寸
     startScreen.hidden = true
     deckScreen.hidden = false
-    session = new DeckSession(deckScreen, renderer, deckTitle(pdf), notes, closeDeck)
+    session = new DeckSession({ root: deckScreen, renderer, title: deckTitle(pdf), notes, remote, pairing, onClose: closeDeck })
   } catch (err) {
     showError(err instanceof Error ? err.message : String(err))
   } finally {

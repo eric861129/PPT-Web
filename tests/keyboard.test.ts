@@ -94,6 +94,12 @@ describe('KeyboardInput', () => {
     ])
   })
 
+  it('opens the phone pairing window with Q', () => {
+    const { actions, press } = setup()
+    press('q')
+    expect(actions).toEqual([{ kind: 'togglePairing' }])
+  })
+
   it('leaves browser shortcuts alone', () => {
     const { actions, press } = setup()
     expect(press('f', { ctrlKey: true })).toBe(false)

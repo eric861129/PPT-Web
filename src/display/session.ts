@@ -1,19 +1,40 @@
 // 一份開啟中的簡報：檢視模式（縮圖列 + 大圖）與放映模式（全螢幕）切換、
-// 鍵盤／滑鼠輸入，以及把播放狀態同步到畫面上。
+// 鍵盤／滑鼠／手機輸入，以及把播放狀態同步到畫面與手機上。
 import type { DeckNotes } from '../core/deck'
 import { ShowController, type Command, type ShowState } from '../core/navigation'
-import { byId, listen } from './dom'
+import type { DeckSummary } from '../core/protocol'
+import { byId, listen } from '../shared/dom'
 import { icons } from './icons'
 import { KeyboardInput, type KeyAction } from './keyboard'
 import { NotesPanel } from './notes-panel'
+import type { PairingDialog } from './pairing-dialog'
+import type { RemoteHost } from './remote-host'
 import type { SlideRenderer } from './renderer'
 import { SlideView } from './slide-view'
 import { ThumbnailStrip } from './thumbnails'
 
 const IDLE_MS = 2500
 const WHEEL_QUIET_MS = 300
+/** 手機縮圖的寬度（像素） */
+const PHONE_THUMB_WIDTH = 640
+
+export interface DeckSessionOptions {
+  root: HTMLElement
+  renderer: SlideRenderer
+  title: string
+  /** null 代表沒有放入 PPTX */
+  notes: DeckNotes | null
+  remote: RemoteHost
+  pairing: PairingDialog
+  onClose: () => void
+}
 
 export class DeckSession {
+  private readonly root: HTMLElement
+  private readonly renderer: SlideRenderer
+  private readonly remote: RemoteHost
+  private readonly pairing: PairingDialog
+  private readonly onClose: () => void
   private readonly controller: ShowController
   private readonly view: SlideView
   private readonly thumbs: ThumbnailStrip
@@ -25,19 +46,19 @@ export class DeckSession {
   private readonly showIndicator = byId('show-indicator')
   private readonly jump = byId('jump')
   private showing = false
+  /** 第一次開始放映的時間，手機上的計時器從這裡算 */
+  private showStartedAt: number | null = null
   /** 按 F 離開全螢幕時仍留在放映模式；按 Esc 離開全螢幕則結束放映 */
   private keepShowingOnFullscreenExit = false
   private idleTimer: ReturnType<typeof setTimeout> | undefined
   private lastWheel = 0
 
-  constructor(
-    private readonly root: HTMLElement,
-    private readonly renderer: SlideRenderer,
-    title: string,
-    /** null 代表沒有放入 PPTX */
-    notes: DeckNotes | null,
-    private readonly onClose: () => void,
-  ) {
+  constructor({ root, renderer, title, notes, remote, pairing, onClose }: DeckSessionOptions) {
+    this.root = root
+    this.renderer = renderer
+    this.remote = remote
+    this.pairing = pairing
+    this.onClose = onClose
     this.controller = new ShowController(renderer.pageCount)
     this.view = new SlideView(renderer)
     this.thumbs = new ThumbnailStrip(
@@ -58,6 +79,13 @@ export class DeckSession {
     this.setupToolbar()
     this.bindEvents()
 
+    remote.onCommand = (cmd) => this.dispatch(cmd)
+    remote.setDeck({
+      summary: deckSummary(title, renderer, notes),
+      thumb: (index) => renderer.renderJpeg(index, PHONE_THUMB_WIDTH),
+    })
+    remote.start()
+
     this.disposers.push(this.controller.subscribe((state) => this.render(state)))
     this.render(this.controller.current)
   }
@@ -66,6 +94,8 @@ export class DeckSession {
     this.endShow()
     clearTimeout(this.idleTimer)
     for (const dispose of this.disposers.splice(0)) dispose()
+    this.remote.onCommand = () => {}
+    this.remote.setDeck(null)
     this.view.destroy()
     this.thumbs.destroy()
     this.notesPanel.destroy()
@@ -88,6 +118,11 @@ export class DeckSession {
     this.pageIndicator.textContent = `第 ${state.index + 1} 頁，共 ${total} 頁`
     this.showIndicator.textContent = `${state.index + 1} / ${total}`
     this.root.dataset.blank = state.blank
+    this.syncRemote()
+  }
+
+  private syncRemote(): void {
+    this.remote.setShow({ ...this.controller.current, showing: this.showing, startedAt: this.showStartedAt })
   }
 
   private onKeyAction(action: KeyAction): void {
@@ -100,6 +135,10 @@ export class DeckSession {
         return this.endShow()
       case 'toggleFullscreen':
         return this.toggleFullscreen()
+      case 'togglePairing':
+        // 放映中不要把 QR Code 秀在投影幕上
+        if (!this.showing) this.pairing.toggle()
+        return
     }
   }
 
@@ -107,9 +146,11 @@ export class DeckSession {
     this.dispatch(fromCurrent ? { type: 'blank', mode: 'off' } : { type: 'goto', index: 0 })
     if (!this.showing) {
       this.showing = true
+      this.showStartedAt ??= performance.now()
       this.root.classList.add('is-showing')
       this.view.relayout()
       this.wake()
+      this.syncRemote()
     }
     this.requestFullscreen()
   }
@@ -120,6 +161,7 @@ export class DeckSession {
     clearTimeout(this.idleTimer)
     this.root.classList.remove('is-showing', 'is-idle')
     this.view.relayout()
+    this.syncRemote()
     if (document.fullscreenElement) {
       this.keepShowingOnFullscreenExit = false
       document.exitFullscreen().catch(() => {})
@@ -177,6 +219,8 @@ export class DeckSession {
     }
 
     on<KeyboardEvent>(window, 'keydown', (e) => {
+      // 視窗（例如手機遙控）開著時，按鍵交給視窗自己處理，Esc 才能關掉它
+      if (e.target instanceof Element && e.target.closest('dialog')) return
       if (this.keyboard.handle(e)) e.preventDefault()
     }, { capture: true })
 
@@ -184,6 +228,7 @@ export class DeckSession {
 
     on(byId('btn-show-start'), 'click', () => this.startShow(false))
     on(byId('btn-show-current'), 'click', () => this.startShow(true))
+    on(byId('btn-remote'), 'click', () => this.pairing.open())
     on(byId('btn-close'), 'click', () => this.onClose())
 
     on<MouseEvent>(byId('show-toolbar'), 'click', (e) => {
@@ -218,4 +263,12 @@ export class DeckSession {
 
     on(window, 'mousemove', () => this.wake())
   }
+}
+
+function deckSummary(title: string, renderer: SlideRenderer, notes: DeckNotes | null): DeckSummary {
+  const count = renderer.pageCount
+  const pages = notes?.pages ?? Array.from({ length: count }, () => ({ title: '', notes: [] }))
+  const summary: DeckSummary = { title, count, aspect: renderer.aspect, hasNotes: notes !== null, pages }
+  if (notes?.warning) summary.warning = notes.warning
+  return summary
 }

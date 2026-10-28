@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "pdfjs-dist": "^6.4.299"
+    "pdfjs-dist": "^6.4.299",
+    "peerjs": "^1.5.5",
+    "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",

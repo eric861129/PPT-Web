@@ -1,6 +1,6 @@
 // 檢視模式大圖下方的備忘稿面板：顯示目前頁的備忘稿、調字級、拖拉調高度。
 import type { DeckNotes } from '../core/deck'
-import { byId, listen, loadPref, savePref } from './dom'
+import { byId, listen, loadPref, messageParagraph, renderNoteParagraphs, savePref } from '../shared/dom'
 
 const SIZES = [14, 16, 18, 20, 22, 26, 30]
 const DEFAULT_SIZE = 18
@@ -52,26 +52,12 @@ export class NotesPanel {
   }
 
   private renderPage(index: number): HTMLElement[] {
-    if (!this.notes) return [this.message('一起放入同一份簡報的 PPTX，就能在這裡看到備忘稿。')]
+    if (!this.notes) return [messageParagraph('一起放入同一份簡報的 PPTX，就能在這裡看到備忘稿。')]
     // PPTX 讀不了：原因已經寫在上方的警告
-    if (!this.notes.pages.length) return [this.message('沒有讀到備忘稿。')]
+    if (!this.notes.pages.length) return [messageParagraph('沒有讀到備忘稿。')]
     const paragraphs = this.notes.pages[index]?.notes ?? []
-    if (!paragraphs.length) return [this.message('這頁沒有備忘稿。')]
-
-    return paragraphs.map(({ text, level }) => {
-      const p = document.createElement('p')
-      p.className = text ? 'note' : 'note is-blank'
-      if (level) p.style.setProperty('--level', String(level))
-      p.textContent = text
-      return p
-    })
-  }
-
-  private message(text: string): HTMLElement {
-    const p = document.createElement('p')
-    p.className = 'notes-empty'
-    p.textContent = text
-    return p
+    if (!paragraphs.length) return [messageParagraph('這頁沒有備忘稿。')]
+    return renderNoteParagraphs(paragraphs)
   }
 
   private applySize(): void {

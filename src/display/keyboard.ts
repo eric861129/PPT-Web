@@ -7,6 +7,7 @@ export type KeyAction =
   | { kind: 'startShow'; fromCurrent: boolean }
   | { kind: 'endShow' }
   | { kind: 'toggleFullscreen' }
+  | { kind: 'togglePairing' }
 
 export type KeyLike = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey'>
 
@@ -77,6 +78,10 @@ export class KeyboardInput {
         return true
       case 'F5':
         this.onAction({ kind: 'startShow', fromCurrent: e.shiftKey })
+        return true
+      case 'q':
+      case 'Q':
+        this.onAction({ kind: 'togglePairing' })
         return true
     }
     return false

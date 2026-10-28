@@ -1,6 +1,6 @@
 # PPT-Web 簡報工作站：規劃與設計
 
-> 狀態：M0–M2 完成；下一步 M3（手機遙控）
+> 狀態：M0–M3 完成；下一步 M4（打磨與講者檢視）
 > 最後更新：2026-10-28
 
 ## 1. 目標
@@ -46,8 +46,9 @@
 
 靜態網站沒有後端，所以用 **WebRTC DataChannel** 讓手機和電腦點對點直連，只在配對那一刻借用公共的 signaling 伺服器交換連線資訊。
 
-- 用 **PeerJS**（它有免費的 PeerJS Cloud signaling），最成熟、範例最多
-- 連線邏輯包在 `Transport` 介面後面，之後可以換成 Trystero（同時用多個公共 relay，沒有單點故障）或自架 PeerServer
+- 用 **PeerJS**（它有免費的 PeerJS Cloud signaling），最成熟、範例最多。PeerJS 預設的 ICE 設定除了 Google STUN，還有 PeerJS 自己的公用 TURN，手機 4G 對電腦 Wi-Fi 的情況多一層保障
+- 連線邏輯包在 `Transport` 介面後面（`src/net/transport.ts`），之後可以換成 Trystero（同時用多個公共 relay，沒有單點故障）或自架 PeerServer
+- PeerJS 要等開啟第一份簡報才載入、才連線；沒用到手機遙控的人不會連到任何外部伺服器
 - 不採用：Firebase / Supabase（要申請帳號和金鑰）、BroadcastChannel（只能在同一個瀏覽器內通訊）
 
 **網路情境與風險**
@@ -119,37 +120,39 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 - **ShowController 是唯一的狀態來源**。手機、觀眾視窗都只送指令、只顯示狀態；重新連線後由它重送完整狀態
 - **所有輸入走同一套指令**：鍵盤、實體簡報筆、滑鼠、手機都送 `Command`（`src/core/navigation.ts`）
 
-## 5. 配對與通訊協定（M3）
+## 5. 配對與通訊協定（M3 完成）
 
 **配對**
 
-- 投影端產生隨機 `roomId`（16 bytes，base64url），當作 PeerJS 的 peer id
-- QR Code 網址：`https://eric861129.github.io/PPT-Web/remote.html#r=<roomId>`。放在 `#` 後面，瀏覽器不會把它送到網站伺服器
+- 投影端產生隨機 room id（`pptweb-` 加 20 個英數字，約 103 bits），當作 PeerJS 的 peer id
+- QR Code 網址：`https://huangchiyu.com/PPT-Web/remote.html#r=<room id>`，由目前網址推算。放在 `#` 後面，瀏覽器不會把它送到網站伺服器。正式網站一律產生 https 網址（手機螢幕常亮需要 https）
+- **只有「手機遙控」視窗開著時，新手機才能配對**（`src/core/pairing.ts`）。QR Code 可能在開場前被投到大螢幕上，這樣台下的人掃了也不能在簡報中途接手。配對過的手機記在 sessionStorage，斷線、重新整理都能自己連回來；「中斷所有手機」會全部斷開並忘記
+- 手機用存在 localStorage 的 client id 表明身分；同一支手機重複連線時，舊連線會被關掉
 - 允許多支手機同時連線（例如助理幫忙翻頁），所有手機畫面同步
-- 投影端重新整理後沿用同一個 `roomId`（存在 sessionStorage），手機不必重掃；若 signaling 回報 id 仍被占用，就退避重試
+- 投影端重新整理後沿用同一個 room id（sessionStorage），手機不必重掃；若 id 被占用（例如複製了分頁）重試 3 次後換一個新的
+- 主機跟著頁面活著，換簡報時手機不用重新配對，會自動收到新的簡報
 
-**訊息格式（JSON）**
+**訊息格式**（`src/core/protocol.ts`，收到的資料一律先驗證）
 
-手機 → 投影端：`nav` 和 `blank` 直接對應 `Command`
+手機 → 投影端
 
 | type | 欄位 | 說明 |
 |---|---|---|
-| `hello` | `v` | 協定版本 |
-| `nav` | `id`, `action`: `next` / `prev` / `first` / `last` | 翻頁 |
-| `goto` | `id`, `index` | 跳到指定頁 |
-| `blank` | `id`, `mode`: `black` / `white` / `off` | 黑幕、白幕 |
-| `ping` | | 心跳 |
+| `hello` | `v`, `client` | 協定版本、手機的 client id |
+| `command` | `id`, `command` | `command` 就是 `Command`（翻頁、跳頁、黑幕）；`id` 用來去重 |
+| `ping` | | 每 4 秒一次 |
 
 投影端 → 手機
 
 | type | 欄位 | 說明 |
 |---|---|---|
-| `deck` | `title`, `count`, `notes[]`, `titles[]` | 連線時送一次 |
-| `thumb` | `index`, `jpeg`（ArrayBuffer） | 先送目前頁附近，再背景補齊 |
-| `state` | `index`, `blank`, `startedAt` | 每次狀態變動都送 |
+| `welcome` / `rejected` | `reason` | 配對通過／被拒絕（附原因，手機不再自動重試） |
+| `deck` | `deck`：`title`, `count`, `aspect`, `hasNotes`, `pages[]`, `warning` | 配對通過時、換簡報時送；關閉簡報時送 `null` |
+| `state` | `index`, `blank`, `showing`, `elapsedMs` | 每次狀態變動都送。計時用「經過的毫秒數」而不是時間點，兩台裝置時鐘不準也沒關係 |
+| `thumb` | `index`, `jpeg` | 640px 寬的 JPEG，先送目前頁附近，再背景補齊；同一張只渲染一次，所有手機共用 |
 | `pong` | | 心跳回應 |
 
-`id` 用來去重：斷線重送同一個指令時，投影片不會多跳一頁。
+**斷線處理**：手機 12 秒沒收到電腦任何訊息就當作斷線；重連退避 1、2、4、8、10 秒；頁面回到前景或網路恢復時立刻重連。電腦端 20 秒沒收到手機消息就把它移除。
 
 ## 6. 畫面設計
 
@@ -181,7 +184,9 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 - 滾輪一段連續滾動只翻一頁，避免觸控板慣性一口氣翻好幾頁
 - 前後各 2 頁預先渲染，翻頁約 10ms，不會閃白
 
-### 6.2 遙控端（手機，直式，M3）
+**手機遙控視窗**（M3 完成）：上方「手機遙控」按鈕或按 `Q` 開啟，顯示 QR Code、網址（可複製）、連線狀態、「中斷所有手機」。放映中按 `Q` 不會開，避免 QR Code 出現在投影幕上。按鈕上的綠色數字是已連線的手機數，手機連上或斷線時會跳出提示。
+
+### 6.2 遙控端（手機，直式，M3 完成）
 
 ```
 ┌─────────────────────────────┐
@@ -199,11 +204,13 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 ```
 
 - 深色主題，在台上不刺眼
-- 黑幕開著時，整個遙控端外框變紅，避免忘了關
+- 上方：連線狀態（放映中／檢視模式／重新連線中）、頁碼、計時（開始放映後顯示經過時間，之前顯示現在時間）
+- 黑幕開著時，整個遙控端外框變紅、目前頁縮圖蓋上「黑幕中」、按鈕變成紅色的「取消黑幕」
 - 字級設定存在 localStorage
-- Screen Wake Lock 讓手機不自動鎖屏（iOS 16.4 以上支援）
+- Screen Wake Lock 讓手機不自動鎖屏（需要 https；iOS 16.4 以上支援）
 - Android 按下時震動回饋（iOS Safari 不支援 `navigator.vibrate`）
 - 橫拿手機時：縮圖在左、備忘稿在右
+- 沒連上時整頁顯示原因：沒掃 QR Code、找不到電腦、被拒絕（附「重新連線」按鈕）、電腦沒開簡報
 
 **網頁做不到的事**：拿不到手機音量鍵，所以沒辦法用音量鍵翻頁。
 
@@ -215,8 +222,8 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 | PDF 渲染 | pdfjs-dist 6 | 業界標準 |
 | 解壓 PPTX | fflate | 比 JSZip 小很多，還能只解壓需要的檔案 |
 | XML 解析 | 瀏覽器內建 DOMParser | 不用額外套件 |
-| P2P 連線 | PeerJS（M3） | 最成熟、文件多 |
-| QR Code | qrcode（M3） | |
+| P2P 連線 | PeerJS | 最成熟、文件多；動態載入 |
+| QR Code | qrcode-generator | 小、沒有相依套件、型別內建 |
 | 本機儲存 | idb-keyval（M4） | 簡化 IndexedDB |
 | 測試 | Vitest；PPTX 解析的測試用 jsdom 提供 DOMParser；範例簡報由 PowerPoint 產生 | |
 | 部署 | GitHub Actions → GitHub Pages | |
@@ -228,25 +235,34 @@ pdf.js 的字碼表、標準字型、wasm 解碼器由 `scripts/copy-pdfjs-asset
 ```
 PPT-Web/
 ├─ index.html                 電腦端入口（開始頁、檢視、放映）
-├─ remote.html                手機遙控端入口（M3 前是佔位頁）
+├─ remote.html                手機遙控端入口
 ├─ src/
-│  ├─ core/
+│  ├─ core/                   不碰 DOM、可單獨測試
 │  │  ├─ navigation.ts        Command、ShowState、ShowController
 │  │  ├─ pptx.ts              解析 PPTX：順序、隱藏、標題、備忘稿
-│  │  └─ deck.ts              備忘稿型別、把投影片對到 PDF 頁
+│  │  ├─ deck.ts              備忘稿型別、把投影片對到 PDF 頁
+│  │  ├─ protocol.ts          手機與電腦之間的訊息、驗證、去重
+│  │  └─ pairing.ts           配對規則、room id、手機網址
+│  ├─ net/
+│  │  ├─ transport.ts         連線層介面
+│  │  └─ peerjs.ts            PeerJS 實作
 │  ├─ display/
 │  │  ├─ main.ts              開始頁、拖放、開啟／關閉簡報
 │  │  ├─ loader.ts            檢查拖進來的檔案
-│  │  ├─ renderer.ts          pdf.js 渲染佇列與快取
+│  │  ├─ renderer.ts          pdf.js 渲染佇列與快取、手機用 JPEG 縮圖
 │  │  ├─ slide-view.ts        單頁畫面（檢視與放映共用）
 │  │  ├─ thumbnails.ts        縮圖列
 │  │  ├─ notes-panel.ts       備忘稿面板
+│  │  ├─ remote-host.ts       手機遙控主機：配對、指令、推送內容
+│  │  ├─ pairing-dialog.ts    手機遙控視窗（QR Code）
 │  │  ├─ session.ts           開啟中的簡報：模式切換、輸入、狀態同步
 │  │  ├─ keyboard.ts          按鍵對應
-│  │  ├─ dom.ts               DOM 與偏好設定的小工具
 │  │  └─ icons.ts
 │  ├─ remote/
-│  │  └─ main.ts
+│  │  ├─ main.ts              手機端進入點：按鈕、滑動、螢幕常亮
+│  │  ├─ client.ts            連線、重連、心跳
+│  │  └─ view.ts              手機畫面
+│  ├─ shared/dom.ts           兩端共用的 DOM 與偏好設定小工具
 │  └─ styles/
 ├─ public/                    favicon；pdfjs/ 由腳本產生
 ├─ scripts/
@@ -266,16 +282,16 @@ PPT-Web/
 | **M0 骨架** ✅ | Vite + TS、兩個入口頁、GitHub Pages 自動部署 | 推上 main 後網站自動更新 |
 | **M1 投影端** ✅ | 拖入 PDF、檢視模式、放映模式、鍵盤滑鼠翻頁、全螢幕、黑幕白幕、跳頁、預先渲染 | 實測：7 頁範例 0.4 秒內可播放，翻頁約 10ms |
 | **M2 備忘稿** ✅ | PPTX 解析、隱藏投影片對齊、檢視模式的備忘稿面板 | 實測：範例檔 7 頁的備忘稿全部對齊（隱藏頁跳過、無備忘稿、多段縮排）；PPTX 壞掉時簡報照樣開 |
-| **M3 手機遙控** | QR 配對、上下頁、黑幕、顯示備忘稿與縮圖 | 掃碼 5 秒內連上；按鍵到換頁小於 200ms |
-| **M4 打磨與講者檢視** | 計時器、字級、Wake Lock、自動重連、跳頁清單、最近簡報、電腦端講者檢視 | 手機鎖屏再解鎖 5 秒內恢復；雙螢幕講者檢視可用 |
+| **M3 手機遙控** ✅ | QR 配對（限配對視窗開著時）、上下頁、滑動換頁、黑幕、備忘稿、縮圖、計時、字級、螢幕常亮、自動重連 | 實測（真實 PeerJS 連線）：掃碼 1.4 秒連上；按鍵到換頁約 50ms；手機重新整理 1.5 秒自動連回 |
+| **M4 打磨與講者檢視** | 計時器暫停／重設、跳頁清單、最近簡報、連線測試、電腦端講者檢視 | 實機手機鎖屏再解鎖 5 秒內恢復；雙螢幕講者檢視可用 |
 | **M5 動畫步驟匯出工具** | `tools/export-deck.ps1` → `.pptweb`，顯示「第 N 張 · 步驟 k/n」 | 範例檔的逐項出現動畫逐步播放 |
 | **M6 選配** | PWA、TURN 設定、備援 transport、雷射筆 | 依需求挑 |
 
 ## 10. 測試計畫
 
-- **單元測試**（`npm test`）：翻頁與黑幕規則、按鍵對應、檔案檢查、PPTX 解析（範例檔加上手工組出的邊界情況：順序和檔名不一致、絕對路徑、換行、欄位、空段落、壞檔）、頁數對齊
+- **單元測試**（`npm test`）：翻頁與黑幕規則、按鍵對應、檔案檢查、PPTX 解析（範例檔加上手工組出的邊界情況：順序和檔名不一致、絕對路徑、換行、欄位、空段落、壞檔）、頁數對齊；M3 用假的連線層測配對與拒絕、重新整理後重連、指令去重、狀態與計時、縮圖順序、靜默斷線、重連退避、心跳
 - **範例簡報**：`scripts/make-sample-deck.ps1` 用 PowerPoint 產生，刻意包含中英混排、多段縮排備忘稿、無備忘稿的頁、隱藏投影片、搬動過順序的投影片、逐項出現動畫
-- **瀏覽器實測**：M1 用無頭 Edge 跑過完整流程（開檔、翻頁、縮圖、滾輪、放映、全螢幕、閒置隱藏、黑幕、結束、關閉再開），也在模擬 GitHub Pages 子路徑 `/PPT-Web/` 下跑過 build 產出；M2 加跑每頁備忘稿、字級、拖拉高度、偏好保存、只放 PDF、PPTX 壞檔
-- **裝置**（M3 起）：手機 iPhone Safari、Android Chrome；電腦 Chrome、Edge
-- **網路**（M3 起）：電腦連手機熱點、同一個 Wi-Fi、手機 4G 對電腦 Wi-Fi
+- **瀏覽器實測**：M1 用無頭 Edge 跑過完整流程（開檔、翻頁、縮圖、滾輪、放映、全螢幕、閒置隱藏、黑幕、結束、關閉再開），也在模擬 GitHub Pages 子路徑 `/PPT-Web/` 下跑過 build 產出；M2 加跑每頁備忘稿、字級、拖拉高度、偏好保存、只放 PDF、PPTX 壞檔；M3 用兩個獨立的瀏覽器環境（電腦 + 模擬手機）透過真實 PeerJS 連線跑完整流程：配對、雙向翻頁、黑幕、滑動、放映計時、手機重新整理重連、陌生手機被拒、換簡報、中斷所有手機、橫向版面
+- **裝置**（尚未實機測試）：手機 iPhone Safari、Android Chrome；電腦 Chrome、Edge
+- **網路**（尚未實機測試）：電腦連手機熱點、同一個 Wi-Fi、手機 4G 對電腦 Wi-Fi
 - **情境**（M4 起）：手機鎖屏後解鎖自動重連；投影端重新整理後恢復；兩支手機同時操作

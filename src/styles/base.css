@@ -59,6 +59,24 @@ kbd {
   color: var(--text-2);
 }
 
+/* 備忘稿段落（電腦端面板與手機共用） */
+.note {
+  margin: 0 0 0.3em;
+  padding-inline-start: calc(var(--level, 0) * 1.5em);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note.is-blank {
+  min-height: 1em;
+}
+
+.notes-empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 15px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
