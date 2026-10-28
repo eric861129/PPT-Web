@@ -12,6 +12,7 @@ export class ThumbnailStrip {
   constructor(
     private readonly renderer: SlideRenderer,
     onSelect: (index: number) => void,
+    titles: readonly string[] = [],
   ) {
     this.element = document.createElement('ol')
     this.element.className = 'thumbs'
@@ -26,7 +27,9 @@ export class ThumbnailStrip {
       button.type = 'button'
       button.className = 'thumb'
       button.dataset.index = String(i)
-      button.setAttribute('aria-label', `第 ${i + 1} 頁`)
+      const title = titles[i]
+      button.setAttribute('aria-label', title ? `第 ${i + 1} 頁：${title}` : `第 ${i + 1} 頁`)
+      if (title) button.title = title
       button.innerHTML = `<span class="thumb-num">${i + 1}</span><span class="thumb-frame" style="aspect-ratio:${renderer.aspect}"></span>`
       button.addEventListener('click', () => {
         onSelect(i)

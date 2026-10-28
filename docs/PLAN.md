@@ -1,6 +1,6 @@
 # PPT-Web 簡報工作站：規劃與設計
 
-> 狀態：M0、M1 完成；下一步 M2（備忘稿）
+> 狀態：M0–M2 完成；下一步 M3（手機遙控）
 > 最後更新：2026-10-28
 
 ## 1. 目標
@@ -64,14 +64,16 @@
 
 ### 3.3 從 PPTX 讀出備忘稿
 
-PPTX 其實是 zip 檔，解開後用 XML 解析：
+PPTX 其實是 zip 檔，解開後用 XML 解析（`src/core/pptx.ts`，M2 完成）：
 
-1. 投影片**順序**看 `ppt/presentation.xml` 的 `<p:sldIdLst>`。不能用檔名 `slide1.xml`、`slide2.xml` 排序，因為在 PowerPoint 裡拖動投影片順序時，檔名不會跟著改
+1. 投影片**順序**看 `ppt/presentation.xml` 的 `<p:sldIdLst>`。不能用檔名 `slide1.xml`、`slide2.xml` 排序：PowerPoint 存檔時會照順序重新編號，但 Google 簡報、LibreOffice、python-pptx 產生的檔案不一定會
 2. 用 `ppt/_rels/presentation.xml.rels` 把 `r:id` 對到 `slides/slideN.xml`
-3. `slideN.xml` 根節點有 `show="0"` 代表隱藏投影片
-4. 在 `ppt/slides/_rels/slideN.xml.rels` 找 Type 結尾是 `/notesSlide` 的關聯，得到 `notesSlides/notesSlideM.xml`
-5. 在 notesSlide 裡找有 `<p:ph type="body"/>` 的 shape，逐段 `<a:p>` 串起 `<a:t>`，`<a:br/>` 轉成換行，用 `lvl` 保留縮排層級
-6. 順便抓每頁標題（`<p:ph type="title"/>` 或 `ctrTitle`），做成手機上的跳頁清單
+3. `slideN.xml` 根節點有 `show="0"`（或 `show="false"`）代表隱藏投影片
+4. 在 `ppt/slides/_rels/slideN.xml.rels` 找 Type 結尾是 `/notesSlide` 的關聯，得到 `notesSlides/notesSlideM.xml`。沒有備忘稿的投影片沒有這個關聯，所以 notesSlide 的編號和投影片編號對不上（範例檔：8 張投影片只有 7 個 notesSlide）
+5. 在 notesSlide 裡找有 `<p:ph type="body"/>` 的 shape，逐段 `<a:p>` 串起每個 run 的 `<a:t>`（PowerPoint 常把一句話拆成好幾個 run），`<a:br/>` 轉成換行，用 `lvl` 保留縮排層級；頭尾的空段落去掉，中間連續空段落只留一個
+6. 順便抓每頁標題（`<p:ph type="title"/>` 或 `ctrTitle`），用在縮圖提示和手機的跳頁清單
+
+只解壓 XML，不碰圖片和影片，大檔案也很快。元素一律用 localName 比對，Strict OOXML 的命名空間不同也能讀。PPTX 讀不了時，簡報照樣開啟，備忘稿面板會說明原因。
 
 **隱藏投影片的對齊**：PowerPoint 匯出 PDF 預設不含隱藏投影片（範例檔已驗證：8 張投影片匯出 7 頁），所以要比對頁數：
 
@@ -156,7 +158,7 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 三種畫面：
 
 - **開始頁**：拖放區、「怎麼匯出 PDF」說明（M4 加最近開過的簡報）
-- **檢視模式**（M1 完成）：上方標題列與放映按鈕、左側縮圖列、中間大圖（M2 在大圖下方加備忘稿面板）。點縮圖跳頁，雙擊大圖從該頁放映
+- **檢視模式**（M1、M2 完成）：上方標題列與放映按鈕、左側縮圖列、中間大圖、下方備忘稿面板。點縮圖跳頁（滑鼠停在縮圖上會顯示該頁標題），雙擊大圖從該頁放映。備忘稿可以用 A− / A+ 調字級，拖拉面板上緣調高度（雙擊恢復預設），兩者都會記住
 - **放映模式**（M1 完成）：全螢幕、投影片置中保持比例。滑鼠一動，左下角出現工具列（上一頁、頁碼、下一頁、黑幕、結束），2.5 秒不動就連同游標一起隱藏
 - **講者檢視**（M4）：筆電畫面顯示目前頁、下一頁、備忘稿、計時器，另開一個觀眾視窗拖到投影機全螢幕。Chrome / Edge 可用 Window Management API 自動把觀眾視窗放到第二個螢幕
 
@@ -211,12 +213,12 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子。因為你常�
 |---|---|---|
 | 建置 | Vite 8 + TypeScript 7，不用框架 | 頁面不多、狀態單純 |
 | PDF 渲染 | pdfjs-dist 6 | 業界標準 |
-| 解壓 PPTX | fflate（M2） | 比 JSZip 小很多 |
+| 解壓 PPTX | fflate | 比 JSZip 小很多，還能只解壓需要的檔案 |
 | XML 解析 | 瀏覽器內建 DOMParser | 不用額外套件 |
 | P2P 連線 | PeerJS（M3） | 最成熟、文件多 |
 | QR Code | qrcode（M3） | |
 | 本機儲存 | idb-keyval（M4） | 簡化 IndexedDB |
-| 測試 | Vitest；範例簡報由 PowerPoint 產生 | |
+| 測試 | Vitest；PPTX 解析的測試用 jsdom 提供 DOMParser；範例簡報由 PowerPoint 產生 | |
 | 部署 | GitHub Actions → GitHub Pages | |
 
 pdf.js 的字碼表、標準字型、wasm 解碼器由 `scripts/copy-pdfjs-assets.mjs` 在 `dev` / `build` 前複製到 `public/pdfjs/`（不進版控）。
@@ -229,15 +231,19 @@ PPT-Web/
 ├─ remote.html                手機遙控端入口（M3 前是佔位頁）
 ├─ src/
 │  ├─ core/
-│  │  └─ navigation.ts        Command、ShowState、ShowController
+│  │  ├─ navigation.ts        Command、ShowState、ShowController
+│  │  ├─ pptx.ts              解析 PPTX：順序、隱藏、標題、備忘稿
+│  │  └─ deck.ts              備忘稿型別、把投影片對到 PDF 頁
 │  ├─ display/
 │  │  ├─ main.ts              開始頁、拖放、開啟／關閉簡報
 │  │  ├─ loader.ts            檢查拖進來的檔案
 │  │  ├─ renderer.ts          pdf.js 渲染佇列與快取
 │  │  ├─ slide-view.ts        單頁畫面（檢視與放映共用）
 │  │  ├─ thumbnails.ts        縮圖列
+│  │  ├─ notes-panel.ts       備忘稿面板
 │  │  ├─ session.ts           開啟中的簡報：模式切換、輸入、狀態同步
 │  │  ├─ keyboard.ts          按鍵對應
+│  │  ├─ dom.ts               DOM 與偏好設定的小工具
 │  │  └─ icons.ts
 │  ├─ remote/
 │  │  └─ main.ts
@@ -259,7 +265,7 @@ PPT-Web/
 |---|---|---|
 | **M0 骨架** ✅ | Vite + TS、兩個入口頁、GitHub Pages 自動部署 | 推上 main 後網站自動更新 |
 | **M1 投影端** ✅ | 拖入 PDF、檢視模式、放映模式、鍵盤滑鼠翻頁、全螢幕、黑幕白幕、跳頁、預先渲染 | 實測：7 頁範例 0.4 秒內可播放，翻頁約 10ms |
-| **M2 備忘稿** | PPTX 解析、隱藏投影片對齊、檢視模式的備忘稿面板 | 範例檔（重排順序、隱藏頁、無備忘稿、多段縮排）全部對齊 |
+| **M2 備忘稿** ✅ | PPTX 解析、隱藏投影片對齊、檢視模式的備忘稿面板 | 實測：範例檔 7 頁的備忘稿全部對齊（隱藏頁跳過、無備忘稿、多段縮排）；PPTX 壞掉時簡報照樣開 |
 | **M3 手機遙控** | QR 配對、上下頁、黑幕、顯示備忘稿與縮圖 | 掃碼 5 秒內連上；按鍵到換頁小於 200ms |
 | **M4 打磨與講者檢視** | 計時器、字級、Wake Lock、自動重連、跳頁清單、最近簡報、電腦端講者檢視 | 手機鎖屏再解鎖 5 秒內恢復；雙螢幕講者檢視可用 |
 | **M5 動畫步驟匯出工具** | `tools/export-deck.ps1` → `.pptweb`，顯示「第 N 張 · 步驟 k/n」 | 範例檔的逐項出現動畫逐步播放 |
@@ -267,9 +273,9 @@ PPT-Web/
 
 ## 10. 測試計畫
 
-- **單元測試**（`npm test`）：翻頁與黑幕規則、按鍵對應、檔案檢查；M2 起加 PPTX 解析
+- **單元測試**（`npm test`）：翻頁與黑幕規則、按鍵對應、檔案檢查、PPTX 解析（範例檔加上手工組出的邊界情況：順序和檔名不一致、絕對路徑、換行、欄位、空段落、壞檔）、頁數對齊
 - **範例簡報**：`scripts/make-sample-deck.ps1` 用 PowerPoint 產生，刻意包含中英混排、多段縮排備忘稿、無備忘稿的頁、隱藏投影片、搬動過順序的投影片、逐項出現動畫
-- **瀏覽器實測**：M1 用無頭 Edge 跑過完整流程（開檔、翻頁、縮圖、滾輪、放映、全螢幕、閒置隱藏、黑幕、結束、關閉再開），也在模擬 GitHub Pages 子路徑 `/PPT-Web/` 下跑過 build 產出
+- **瀏覽器實測**：M1 用無頭 Edge 跑過完整流程（開檔、翻頁、縮圖、滾輪、放映、全螢幕、閒置隱藏、黑幕、結束、關閉再開），也在模擬 GitHub Pages 子路徑 `/PPT-Web/` 下跑過 build 產出；M2 加跑每頁備忘稿、字級、拖拉高度、偏好保存、只放 PDF、PPTX 壞檔
 - **裝置**（M3 起）：手機 iPhone Safari、Android Chrome；電腦 Chrome、Edge
 - **網路**（M3 起）：電腦連手機熱點、同一個 Wi-Fi、手機 4G 對電腦 Wi-Fi
 - **情境**（M4 起）：手機鎖屏後解鎖自動重連；投影端重新整理後恢復；兩支手機同時操作

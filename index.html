@@ -57,6 +57,19 @@
         <p id="jump" class="jump" hidden></p>
       </section>
 
+      <section id="notes" class="notes" aria-label="備忘稿">
+        <div id="notes-resizer" class="notes-resizer" title="拖拉調整高度，雙擊恢復預設" aria-hidden="true"></div>
+        <header class="notes-head">
+          <h2 class="notes-label">備忘稿</h2>
+          <p id="notes-warning" class="notes-warning" role="status" hidden></p>
+          <div class="notes-size" role="group" aria-label="備忘稿字級">
+            <button type="button" class="size-btn" data-step="-1" aria-label="縮小字級">A−</button>
+            <button type="button" class="size-btn" data-step="1" aria-label="放大字級">A+</button>
+          </div>
+        </header>
+        <div id="notes-body" class="notes-body"></div>
+      </section>
+
       <footer class="hints">
         <span><kbd>←</kbd><kbd>→</kbd> 換頁</span>
         <span><kbd>F5</kbd> 從頭放映</span>

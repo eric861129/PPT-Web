@@ -1,8 +1,11 @@
 // 一份開啟中的簡報：檢視模式（縮圖列 + 大圖）與放映模式（全螢幕）切換、
 // 鍵盤／滑鼠輸入，以及把播放狀態同步到畫面上。
+import type { DeckNotes } from '../core/deck'
 import { ShowController, type Command, type ShowState } from '../core/navigation'
+import { byId, listen } from './dom'
 import { icons } from './icons'
 import { KeyboardInput, type KeyAction } from './keyboard'
+import { NotesPanel } from './notes-panel'
 import type { SlideRenderer } from './renderer'
 import { SlideView } from './slide-view'
 import { ThumbnailStrip } from './thumbnails'
@@ -10,16 +13,11 @@ import { ThumbnailStrip } from './thumbnails'
 const IDLE_MS = 2500
 const WHEEL_QUIET_MS = 300
 
-function byId<T extends HTMLElement>(id: string): T {
-  const el = document.getElementById(id)
-  if (!el) throw new Error(`#${id} not found`)
-  return el as T
-}
-
 export class DeckSession {
   private readonly controller: ShowController
   private readonly view: SlideView
   private readonly thumbs: ThumbnailStrip
+  private readonly notesPanel: NotesPanel
   private readonly keyboard: KeyboardInput
   private readonly disposers: Array<() => void> = []
   private readonly stage = byId('stage')
@@ -36,11 +34,18 @@ export class DeckSession {
     private readonly root: HTMLElement,
     private readonly renderer: SlideRenderer,
     title: string,
+    /** null 代表沒有放入 PPTX */
+    notes: DeckNotes | null,
     private readonly onClose: () => void,
   ) {
     this.controller = new ShowController(renderer.pageCount)
     this.view = new SlideView(renderer)
-    this.thumbs = new ThumbnailStrip(renderer, (index) => this.dispatch({ type: 'goto', index }))
+    this.thumbs = new ThumbnailStrip(
+      renderer,
+      (index) => this.dispatch({ type: 'goto', index }),
+      notes?.pages.map((p) => p.title),
+    )
+    this.notesPanel = new NotesPanel(root, notes)
     this.keyboard = new KeyboardInput(
       (action) => this.onKeyAction(action),
       (digits) => this.showJump(digits),
@@ -63,6 +68,7 @@ export class DeckSession {
     for (const dispose of this.disposers.splice(0)) dispose()
     this.view.destroy()
     this.thumbs.destroy()
+    this.notesPanel.destroy()
     this.renderer.destroy()
     this.root.classList.remove('is-showing', 'is-idle')
     delete this.root.dataset.blank
@@ -78,6 +84,7 @@ export class DeckSession {
     this.view.show(state.index)
     this.view.setBlank(state.blank)
     this.thumbs.setCurrent(state.index)
+    this.notesPanel.show(state.index)
     this.pageIndicator.textContent = `第 ${state.index + 1} 頁，共 ${total} 頁`
     this.showIndicator.textContent = `${state.index + 1} / ${total}`
     this.root.dataset.blank = state.blank
@@ -166,8 +173,7 @@ export class DeckSession {
       handler: (e: E) => void,
       options?: AddEventListenerOptions,
     ) => {
-      target.addEventListener(type, handler as EventListener, options)
-      this.disposers.push(() => target.removeEventListener(type, handler as EventListener, options))
+      this.disposers.push(listen(target, type, handler, options))
     }
 
     on<KeyboardEvent>(window, 'keydown', (e) => {

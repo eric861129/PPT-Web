@@ -1,5 +1,7 @@
 import '../styles/base.css'
 import '../styles/display.css'
+import { alignNotes, type DeckNotes, type SlideSource } from '../core/deck'
+import { parsePptx, PptxError } from '../core/pptx'
 import { deckTitle, pickDeckFiles } from './loader'
 import { openPdf } from './renderer'
 import { DeckSession } from './session'
@@ -20,6 +22,20 @@ function showError(message: string): void {
   startError.hidden = !message
 }
 
+/** 讀不了 PPTX 時不擋住簡報，只是沒有備忘稿 */
+async function readSlides(file: File): Promise<SlideSource[] | { error: string }> {
+  try {
+    return parsePptx(new Uint8Array(await file.arrayBuffer()))
+  } catch (err) {
+    console.error(err)
+    return { error: err instanceof PptxError ? err.message : '無法讀取 PPTX 的備忘稿。' }
+  }
+}
+
+function toDeckNotes(slides: SlideSource[] | { error: string }, pageCount: number): DeckNotes {
+  return 'error' in slides ? { pages: [], warning: slides.error } : alignNotes(slides, pageCount)
+}
+
 async function openFiles(files: File[]): Promise<void> {
   if (loading) return
   const picked = pickDeckFiles(files)
@@ -29,11 +45,15 @@ async function openFiles(files: File[]): Promise<void> {
   showError('')
   dropZone.classList.add('is-loading')
   try {
-    const renderer = await openPdf(await picked.files.pdf.arrayBuffer())
+    const { pdf, pptx } = picked.files
+    // PPTX 和 PDF 同時讀；readSlides 不會 reject
+    const slides = pptx ? readSlides(pptx) : undefined
+    const renderer = await openPdf(await pdf.arrayBuffer())
+    const notes = slides ? toDeckNotes(await slides, renderer.pageCount) : null
     // 先讓畫面可見，SlideView 才量得到尺寸
     startScreen.hidden = true
     deckScreen.hidden = false
-    session = new DeckSession(deckScreen, renderer, deckTitle(picked.files.pdf), closeDeck)
+    session = new DeckSession(deckScreen, renderer, deckTitle(pdf), notes, closeDeck)
   } catch (err) {
     showError(err instanceof Error ? err.message : String(err))
   } finally {
