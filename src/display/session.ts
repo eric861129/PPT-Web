@@ -79,7 +79,10 @@ export class DeckSession {
     this.setupToolbar()
     this.bindEvents()
 
-    remote.onCommand = (cmd) => this.dispatch(cmd)
+    // 「開始放映」只有 PowerPoint 模式用得到；網站自己放映需要在電腦上按，才能進全螢幕
+    remote.onCommand = (cmd) => {
+      if (cmd.type !== 'startShow') this.dispatch(cmd)
+    }
     remote.setDeck({
       summary: deckSummary(title, renderer, notes),
       thumb: (index) => renderer.renderJpeg(index, PHONE_THUMB_WIDTH),

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Command } from '../src/core/navigation'
-import type { DeckSummary } from '../src/core/protocol'
+import type { DeckSummary, RemoteCommand } from '../src/core/protocol'
 import {
   REJECT_FORGOTTEN,
   REJECT_NOT_PAIRING,
@@ -28,7 +27,7 @@ const hosts: RemoteHost[] = []
 function setup(storage = memoryStorage(), now = () => 1000) {
   const transport = new FakeTransport()
   const host = new RemoteHost(transport, { pageUrl: 'https://example.com/PPT-Web/', storage, now })
-  const commands: Command[] = []
+  const commands: RemoteCommand[] = []
   host.onCommand = (c) => commands.push(c)
   host.start()
   hosts.push(host)
@@ -209,6 +208,30 @@ describe('RemoteHost commands and state', () => {
     await flush()
     await flush()
     expect(thumb).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries a failed thumbnail on the next page change, up to three tries', async () => {
+    const { transport, host } = setup()
+    let calls = 0
+    const thumb = vi.fn(async (index: number) => {
+      if (index === 1) {
+        calls++
+        throw new Error('busy')
+      }
+      return new Uint8Array([index]).buffer
+    })
+    host.setPairing(true)
+    host.setDeck({ summary: summary(2), thumb })
+    host.setShow({ index: 0, blank: 'off', showing: true, startedAt: 0 })
+    const phone = transport.phone()
+    hello(phone)
+    for (let i = 0; i < 5; i++) {
+      await flush()
+      host.setShow({ index: 0, blank: 'off', showing: true, startedAt: 0 })
+    }
+    await flush()
+    expect(calls).toBe(3)
+    expect(phone.sentOfType<{ type: 'thumb'; index: number }>('thumb').map((t) => t.index)).toEqual([0])
   })
 
   it('drops phones that go silent', () => {

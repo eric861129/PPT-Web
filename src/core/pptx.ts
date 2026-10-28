@@ -62,11 +62,11 @@ function readNotes(doc: Document): NoteParagraph[] {
     const type = placeholderType(sp)
     return type === 'body' || (type === null && hasPlaceholder(sp))
   })
-  return tidy(body.flatMap(paragraphs))
+  return tidyNotes(body.flatMap(paragraphs))
 }
 
 /** 去掉頭尾空白段落，中間連續的空段落只留一個 */
-function tidy(list: NoteParagraph[]): NoteParagraph[] {
+export function tidyNotes(list: readonly NoteParagraph[]): NoteParagraph[] {
   const out: NoteParagraph[] = []
   for (const p of list) {
     const empty = !p.text.trim()

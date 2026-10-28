@@ -18,6 +18,7 @@ export class RemoteView {
   private readonly warning = byId('r-warning')
   private readonly notes = byId('r-notes')
   private readonly blankButton = byId('r-blank')
+  private readonly step = byId('r-step')
   private readonly overlay = byId('r-overlay')
   private readonly overlayTitle = byId('r-overlay-title')
   private readonly overlayText = byId('r-overlay-text')
@@ -52,6 +53,11 @@ export class RemoteView {
     return this.state?.blank ?? 'off'
   }
 
+  /** 中間那顆按鈕：PowerPoint 模式還沒放映時是「從這頁放映」，其他時候是黑幕 */
+  get middleAction(): 'start' | 'blank' {
+    return this.deck?.mode === 'powerpoint' && this.state && !this.state.showing ? 'start' : 'blank'
+  }
+
   showNoRoom(): void {
     this.root.dataset.conn = 'none'
     this.connText.textContent = '未連線'
@@ -76,6 +82,8 @@ export class RemoteView {
     if (deck) this.root.style.setProperty('--aspect', String(deck.aspect || 16 / 9))
     this.warning.textContent = deck?.warning ?? ''
     this.warning.hidden = !deck?.warning
+    this.step.hidden = true
+    this.renderMiddleButton()
     this.renderOverlay()
     this.renderSlides()
   }
@@ -84,8 +92,10 @@ export class RemoteView {
     this.state = state
     this.elapsed = state.elapsedMs === null ? null : { ms: state.elapsedMs, at: performance.now() }
     this.root.dataset.blank = state.blank
-    this.blankButton.textContent =
-      state.blank === 'black' ? '取消黑幕' : state.blank === 'white' ? '取消白幕' : '黑幕'
+    this.renderMiddleButton()
+    const clicks = state.clicks
+    this.step.hidden = !clicks
+    this.step.textContent = clicks ? `動畫 ${clicks.index} / ${clicks.count}` : ''
     this.renderConnText()
     this.renderSlides()
     this.renderTime()
@@ -100,10 +110,22 @@ export class RemoteView {
     if (index === at || index === at + 1) this.renderFrames()
   }
 
+  private renderMiddleButton(): void {
+    const blank = this.state?.blank ?? 'off'
+    const start = this.middleAction === 'start'
+    this.blankButton.classList.toggle('r-btn-start', start)
+    this.blankButton.textContent =
+      start ? '從這頁放映'
+      : blank === 'black' ? '取消黑幕'
+      : blank === 'white' ? '取消白幕'
+      : '黑幕'
+  }
+
   private renderConnText(): void {
     const status = this.connection?.status
+    const idle = this.deck?.mode === 'powerpoint' ? '還沒放映' : '檢視模式'
     this.connText.textContent =
-      status === 'connected' ? (this.state?.showing ? '放映中' : '檢視模式')
+      status === 'connected' ? (this.state?.ended ? '放映結束' : this.state?.showing ? '放映中' : idle)
       : status === 'reconnecting' ? '重新連線中…'
       : status === 'rejected' ? '已中斷'
       : '連線中…'

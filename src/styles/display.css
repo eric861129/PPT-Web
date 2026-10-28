@@ -123,6 +123,40 @@
   font-size: 14px;
 }
 
+.alt-mode {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.alt-mode h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.alt-mode p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.alt-mode .btn {
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  .alt-mode {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 .howto {
   margin-top: 40px;
   color: var(--text-2);
@@ -270,7 +304,7 @@
 
 .toast {
   position: fixed;
-  bottom: 56px;
+  top: 68px;
   left: 50%;
   z-index: 10;
   margin: 0;
@@ -283,7 +317,7 @@
   transform: translateX(-50%);
 }
 
-.deck.is-showing .toast {
+.deck.is-showing ~ .toast {
   display: none;
 }
 
@@ -672,6 +706,169 @@
 
 .show-toolbar {
   display: none;
+}
+
+/* ---------- PowerPoint 模式 ---------- */
+
+/* .topbar、.notes、.hints 共用檢視模式的樣式（含 grid-area 名稱），這裡的網格要定義同名區域 */
+.ppt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top"
+    "main"
+    "hints";
+  height: 100vh;
+}
+
+.ppt-setup,
+.ppt-main {
+  grid-area: main;
+}
+
+.ppt .hints {
+  border-top: 1px solid var(--border);
+}
+
+.ppt-setup {
+  display: grid;
+  place-items: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.ppt-setup-card {
+  width: min(560px, 100%);
+}
+
+.ppt-setup-card h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.ppt-steps {
+  margin: 0 0 20px;
+  padding-left: 22px;
+  line-height: 1.8;
+}
+
+.ppt-steps li {
+  margin-bottom: 8px;
+}
+
+.ppt-steps a {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.ppt-setup-card .muted,
+.ppt-steps .muted {
+  display: block;
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ppt-main {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "slides notes";
+  min-height: 0;
+}
+
+.ppt-slides {
+  grid-area: slides;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+  min-height: 0;
+  padding: 24px;
+}
+
+.ppt-slides figure {
+  min-height: 0;
+  margin: 0;
+}
+
+.ppt-current {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ppt-current .ppt-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.ppt-frame {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #24262b;
+}
+
+.ppt-current .ppt-frame img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.ppt-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ppt-frame-text {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.ppt-slides figcaption {
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ppt:is([data-blank="black"], [data-blank="white"]) .ppt-current .ppt-frame {
+  outline: 3px solid #e5484d;
+  outline-offset: 2px;
+}
+
+.ppt-side {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.ppt-next .ppt-frame {
+  aspect-ratio: 16 / 9;
+}
+
+.ppt-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ppt-controls .btn {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+
+.ppt-notes {
+  border-top: 0;
+  border-left: 1px solid var(--border);
 }
 
 /* ---------- 放映模式 ---------- */

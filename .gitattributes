@@ -1,0 +1,4 @@
+# cmd.exe 解析 LF 換行的批次檔偶爾會出錯，.cmd 一律用 CRLF
+*.cmd text eol=crlf
+*.pptx binary
+*.pdf binary

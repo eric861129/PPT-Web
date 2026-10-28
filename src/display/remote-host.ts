@@ -1,7 +1,6 @@
 // 電腦端的手機遙控主機：接受手機連線、檢查配對、把手機的指令交給播放器，
 // 並把簡報內容、播放狀態、縮圖推給每一支手機。
 // 主機跟著頁面活著：換簡報時手機不用重新配對。
-import type { Command } from '../core/navigation'
 import { createRoomId, isRoomId, PairingRegistry, remoteUrl } from '../core/pairing'
 import {
   parseRemoteMessage,
@@ -9,6 +8,7 @@ import {
   RecentIds,
   type DeckSummary,
   type DisplayMessage,
+  type RemoteCommand,
   type RemoteState,
 } from '../core/protocol'
 import type { Host, HostStatus, Link, Transport } from '../net/transport'
@@ -53,13 +53,14 @@ const PAIRED_KEY = 'ppt-web:paired'
 /** 手機每 4 秒 ping 一次；太久沒消息就當作斷線 */
 const STALE_MS = 20000
 const SWEEP_MS = 5000
+const MAX_THUMB_ATTEMPTS = 3
 
 export const REJECT_NOT_PAIRING = '要配對新手機，請先在電腦上打開「手機遙控」視窗，再掃描 QR Code。'
 export const REJECT_FORGOTTEN = '電腦端已中斷這支手機。要再連線，請重新掃描 QR Code。'
 export const REJECT_VERSION = '手機頁面的版本跟電腦端不同，請重新整理手機頁面。'
 
 export class RemoteHost {
-  onCommand: (command: Command) => void = () => {}
+  onCommand: (command: RemoteCommand) => void = () => {}
 
   private host: Host | undefined
   private status: HostStatus = 'starting'
@@ -72,6 +73,7 @@ export class RemoteHost {
   private readonly now: () => number
   private deck: HostDeck | null = null
   private thumbs = new Map<number, Promise<ArrayBuffer>>()
+  private thumbFailures = new Map<number, number>()
   private show: ShowSnapshot | null = null
   private sweepTimer: ReturnType<typeof setInterval> | undefined
 
@@ -143,6 +145,7 @@ export class RemoteHost {
   setDeck(deck: HostDeck | null): void {
     this.deck = deck
     this.thumbs = new Map()
+    this.thumbFailures = new Map()
     if (!deck) this.show = null
     for (const c of this.clients) if (c.id) this.sendDeck(c)
   }
@@ -220,6 +223,7 @@ export class RemoteHost {
   private async pump(client: Client): Promise<void> {
     if (client.pumping) return
     client.pumping = true
+    const retryLater: number[] = []
     try {
       for (;;) {
         const deck = this.deck
@@ -231,12 +235,19 @@ export class RemoteHost {
         try {
           jpeg = await this.thumbFor(deck, index)
         } catch (err) {
-          console.warn('thumbnail failed', index, err)
+          // 簡報已經關掉時，還沒畫完的縮圖被取消是正常的
+          if (deck !== this.deck) continue
+          const failures = (this.thumbFailures.get(index) ?? 0) + 1
+          this.thumbFailures.set(index, failures)
+          if (failures < MAX_THUMB_ATTEMPTS) retryLater.push(index)
+          else console.warn('thumbnail failed', index, err)
           continue
         }
         if (deck === this.deck) this.send(client, { type: 'thumb', index, jpeg })
       }
     } finally {
+      // 失敗的縮圖（例如 PowerPoint 剛好在忙）等下次翻頁時再試
+      for (const index of retryLater) client.sent.delete(index)
       client.pumping = false
     }
   }

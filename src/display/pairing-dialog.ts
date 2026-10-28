@@ -12,7 +12,8 @@ export class PairingDialog {
   private readonly statusText = byId('pair-status-text')
   private readonly urlInput = byId<HTMLInputElement>('pair-url')
   private readonly forget = byId<HTMLButtonElement>('pair-forget')
-  private readonly badge = byId('remote-count')
+  /** 每個畫面的「手機遙控」按鈕上都有一個數字 */
+  private readonly badges = document.querySelectorAll<HTMLElement>('.remote-count')
   private readonly toast = byId('toast')
   private qrUrl = ''
   private clients = 0
@@ -68,8 +69,10 @@ export class PairingDialog {
       : status === 'offline' ? '連不上配對伺服器，正在重試。請確認電腦有網路。'
       : '正在連線配對伺服器…'
 
-    this.badge.textContent = String(clients)
-    this.badge.hidden = !clients
+    for (const badge of this.badges) {
+      badge.textContent = String(clients)
+      badge.hidden = !clients
+    }
     this.forget.hidden = !clients
 
     if (clients !== this.clients) {

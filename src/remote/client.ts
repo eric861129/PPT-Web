@@ -1,7 +1,12 @@
 // 手機端的連線：連上電腦、送出指令、斷線自動重連。
 // 手機鎖屏或切到別的 App 時連線常會被系統切斷，所以重連是常態，不是例外。
-import type { Command } from '../core/navigation'
-import { parseDisplayMessage, PROTOCOL_VERSION, type DisplayMessage, type RemoteMessage } from '../core/protocol'
+import {
+  parseDisplayMessage,
+  PROTOCOL_VERSION,
+  type DisplayMessage,
+  type RemoteCommand,
+  type RemoteMessage,
+} from '../core/protocol'
 import { ConnectError, type ConnectFailure, type Link, type Transport } from '../net/transport'
 
 /**
@@ -57,7 +62,7 @@ export class RemoteClient {
   }
 
   /** 已連線才會送出，回傳是否送出 */
-  send(command: Command): boolean {
+  send(command: RemoteCommand): boolean {
     if (this.info.status !== 'connected' || !this.link) return false
     this.post({ type: 'command', id: `${this.clientId}-${++this.seq}`, command })
     return true

@@ -1,6 +1,6 @@
 import '../styles/base.css'
 import '../styles/remote.css'
-import type { Command } from '../core/navigation'
+import type { RemoteCommand } from '../core/protocol'
 import { createClientId, roomIdFromHash } from '../core/pairing'
 import { peerTransport } from '../net/peerjs'
 import { byId, listen, loadPref, savePref } from '../shared/dom'
@@ -37,14 +37,17 @@ if (!roomId) {
   })
   client.start()
 
-  const send = (command: Command) => {
+  const send = (command: RemoteCommand) => {
     void keepAwake()
     if (client.send(command)) navigator.vibrate?.(10)
   }
 
   listen(byId('r-prev'), 'click', () => send({ type: 'prev' }))
   listen(byId('r-next-btn'), 'click', () => send({ type: 'next' }))
-  listen(byId('r-blank'), 'click', () => send({ type: 'blank', mode: view.blank === 'off' ? 'black' : 'off' }))
+  listen(byId('r-blank'), 'click', () => {
+    if (view.middleAction === 'start') send({ type: 'startShow' })
+    else send({ type: 'blank', mode: view.blank === 'off' ? 'black' : 'off' })
+  })
 
   // 在投影片或備忘稿上左右滑動也能換頁
   for (const area of [document.querySelector('.r-slides'), byId('r-notes')]) {

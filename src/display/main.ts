@@ -3,6 +3,7 @@ import '../styles/display.css'
 import { alignNotes, type DeckNotes, type SlideSource } from '../core/deck'
 import { parsePptx, PptxError } from '../core/pptx'
 import { peerTransport } from '../net/peerjs'
+import { PowerPointSession } from '../powerpoint/session'
 import { deckTitle, pickDeckFiles } from './loader'
 import { PairingDialog } from './pairing-dialog'
 import { RemoteHost } from './remote-host'
@@ -17,12 +18,37 @@ const pairing = new PairingDialog(remote)
 
 const startScreen = document.getElementById('start')!
 const deckScreen = document.getElementById('deck')!
+const pptScreen = document.getElementById('ppt')!
 const dropZone = document.getElementById('drop-zone')!
 const fileInput = document.getElementById('file-input') as HTMLInputElement
 const startError = document.getElementById('start-error')!
 
 let session: DeckSession | undefined
+let ppt: PowerPointSession | undefined
 let loading = false
+
+// PowerPoint 模式記在網址的 #powerpoint，重新整理後還在同一個模式
+const PPT_HASH = '#powerpoint'
+
+function openPowerPoint(): void {
+  if (ppt) return
+  startScreen.hidden = true
+  pptScreen.hidden = false
+  if (location.hash !== PPT_HASH) history.replaceState(null, '', PPT_HASH)
+  ppt = new PowerPointSession({ root: pptScreen, remote, pairing, onClose: closePowerPoint })
+}
+
+function closePowerPoint(): void {
+  ppt?.close()
+  ppt = undefined
+  pptScreen.hidden = true
+  startScreen.hidden = false
+  history.replaceState(null, '', location.pathname + location.search)
+  document.title = APP_TITLE
+}
+
+document.getElementById('btn-ppt-mode')!.addEventListener('click', openPowerPoint)
+if (location.hash === PPT_HASH) openPowerPoint()
 
 function showError(message: string): void {
   startError.textContent = message

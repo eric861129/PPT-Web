@@ -5,10 +5,16 @@ import type { BlankMode, Command } from './navigation'
 
 export const PROTOCOL_VERSION = 1
 
+/** 手機能送的指令：翻頁、黑幕，加上 PowerPoint 模式才有的「開始放映」 */
+export type RemoteCommand = Command | { type: 'startShow' }
+
 export type RemoteMessage =
   | { type: 'hello'; v: number; client: string }
-  | { type: 'command'; id: string; command: Command }
+  | { type: 'command'; id: string; command: RemoteCommand }
   | { type: 'ping' }
+
+/** pdf：網站自己放映 PDF；powerpoint：由電腦上的 PowerPoint 放映 */
+export type DeckMode = 'pdf' | 'powerpoint'
 
 export interface DeckSummary {
   title: string
@@ -18,6 +24,8 @@ export interface DeckSummary {
   hasNotes: boolean
   pages: PageNotes[]
   warning?: string
+  /** 沒有寫就是 pdf */
+  mode?: DeckMode
 }
 
 export interface RemoteState {
@@ -26,6 +34,10 @@ export interface RemoteState {
   showing: boolean
   /** 從開始放映到送出這則訊息經過的毫秒數；還沒放映過是 null */
   elapsedMs: number | null
+  /** PowerPoint 模式：這張投影片的動畫已經按了幾下、共幾下 */
+  clicks?: { index: number; count: number }
+  /** PowerPoint 模式：停在「放映結束」的黑畫面 */
+  ended?: boolean
 }
 
 export type DisplayMessage =
@@ -59,13 +71,18 @@ export function parseCommand(x: unknown): Command | null {
   return null
 }
 
+export function parseRemoteCommand(x: unknown): RemoteCommand | null {
+  if (isObj(x) && x.type === 'startShow') return { type: 'startShow' }
+  return parseCommand(x)
+}
+
 export function parseRemoteMessage(x: unknown): RemoteMessage | null {
   if (!isObj(x)) return null
   switch (x.type) {
     case 'hello':
       return typeof x.v === 'number' && isShortString(x.client) ? { type: 'hello', v: x.v, client: x.client } : null
     case 'command': {
-      const command = parseCommand(x.command)
+      const command = parseRemoteCommand(x.command)
       return command && isShortString(x.id) ? { type: 'command', id: x.id, command } : null
     }
     case 'ping':

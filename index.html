@@ -23,6 +23,14 @@
         </label>
         <p id="start-error" class="start-error" role="alert" hidden></p>
 
+        <section class="alt-mode">
+          <div>
+            <h2>需要完整的動畫效果？</h2>
+            <p>改用這台電腦上的 PowerPoint 放映：動畫和切換效果完全保留，手機一樣能遙控、看備忘稿。</p>
+          </div>
+          <button id="btn-ppt-mode" type="button" class="btn">用 PowerPoint 放映</button>
+        </section>
+
         <section class="howto">
           <h2>準備檔案</h2>
           <ol>
@@ -41,7 +49,7 @@
           <button id="btn-remote" type="button" class="btn btn-remote" title="手機遙控（Q）">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
             手機遙控
-            <span id="remote-count" class="badge" hidden></span>
+            <span class="badge remote-count" hidden></span>
           </button>
           <button id="btn-show-current" type="button" class="btn">從目前頁放映</button>
           <button id="btn-show-start" type="button" class="btn btn-primary">從頭放映</button>
@@ -84,9 +92,84 @@
         <span>數字 + <kbd>Enter</kbd> 跳頁</span>
         <span><kbd>Q</kbd> 手機遙控</span>
       </footer>
-
-      <p id="toast" class="toast" role="status" hidden></p>
     </div>
+
+    <div id="ppt" class="ppt" hidden>
+      <header class="topbar">
+        <h1 id="ppt-title" class="deck-title">用 PowerPoint 放映</h1>
+        <p id="ppt-indicator" class="page-indicator" aria-live="polite"></p>
+        <div class="topbar-actions">
+          <button id="ppt-remote" type="button" class="btn btn-remote" title="手機遙控（Q）">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+            手機遙控
+            <span class="badge remote-count" hidden></span>
+          </button>
+          <button id="ppt-start-current" type="button" class="btn" hidden>從目前頁放映</button>
+          <button id="ppt-start" type="button" class="btn btn-primary" hidden>從頭放映</button>
+          <button id="ppt-end" type="button" class="btn" hidden>結束放映</button>
+          <button id="ppt-close" type="button" class="btn btn-ghost">離開</button>
+        </div>
+      </header>
+
+      <section id="ppt-setup" class="ppt-setup">
+        <div class="ppt-setup-card">
+          <h2>連接這台電腦上的 PowerPoint</h2>
+          <ol class="ppt-steps">
+            <li>
+              <a href="./tools/PPT-Web-Bridge.cmd" download>下載橋接程式 PPT-Web-Bridge.cmd</a>，雙擊執行並讓它開著。
+              <span class="muted">第一次執行時 Windows 可能跳出警告，選「其他資訊 → 仍要執行」。</span>
+            </li>
+            <li>用 PowerPoint 打開你的簡報。</li>
+            <li>瀏覽器如果詢問是否允許這個網站存取這台裝置上的其他應用程式，請選「允許」。</li>
+          </ol>
+          <p id="ppt-status" class="pair-status" data-status="starting">
+            <span class="status-dot" aria-hidden="true"></span><span id="ppt-status-text"></span>
+          </p>
+          <p class="muted">橋接程式只接受這台電腦、而且只接受這個網站的連線；簡報檔案不會離開這台電腦。</p>
+        </div>
+      </section>
+
+      <main id="ppt-main" class="ppt-main" hidden>
+        <section class="ppt-slides" aria-label="投影片">
+          <figure class="ppt-current">
+            <div id="ppt-current" class="ppt-frame"></div>
+            <figcaption id="ppt-current-caption"></figcaption>
+          </figure>
+          <div class="ppt-side">
+            <figure class="ppt-next">
+              <div id="ppt-next" class="ppt-frame"></div>
+              <figcaption>下一張</figcaption>
+            </figure>
+            <nav class="ppt-controls" aria-label="放映控制">
+              <button id="ppt-prev" type="button" class="btn">上一步</button>
+              <button id="ppt-blank" type="button" class="btn" hidden>黑幕</button>
+              <button id="ppt-next-btn" type="button" class="btn btn-primary">下一步</button>
+            </nav>
+          </div>
+        </section>
+        <section class="notes ppt-notes" aria-label="備忘稿">
+          <header class="notes-head">
+            <h2 id="ppt-notes-title" class="notes-label">備忘稿</h2>
+            <div class="notes-size" role="group" aria-label="備忘稿字級">
+              <button type="button" class="size-btn ppt-size-btn" data-step="-1" aria-label="縮小字級">A−</button>
+              <button type="button" class="size-btn ppt-size-btn" data-step="1" aria-label="放大字級">A+</button>
+            </div>
+          </header>
+          <div id="ppt-notes" class="notes-body"></div>
+        </section>
+      </main>
+
+      <footer class="hints">
+        <span><kbd>←</kbd><kbd>→</kbd> 上一步／下一步</span>
+        <span><kbd>F5</kbd> 從頭放映</span>
+        <span><kbd>Shift</kbd>+<kbd>F5</kbd> 從目前頁</span>
+        <span><kbd>Esc</kbd> 結束放映</span>
+        <span><kbd>B</kbd> 黑幕</span>
+        <span><kbd>Q</kbd> 手機遙控</span>
+      </footer>
+    </div>
+
+    <p id="toast" class="toast" role="status" hidden></p>
 
     <dialog id="pair-dialog" class="pair-dialog" aria-labelledby="pair-title">
       <header class="pair-head">

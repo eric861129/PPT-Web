@@ -138,6 +138,14 @@ body {
   font-size: 12px;
 }
 
+.r-step {
+  margin-top: 4px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .r-next figcaption {
   margin-top: 4px;
   color: var(--text-3);
@@ -267,6 +275,12 @@ body {
 .remote:is([data-blank="black"], [data-blank="white"]) .r-btn-blank {
   border-color: #e5484d;
   background: #e5484d;
+  color: #fff;
+}
+
+.r-btn-start {
+  border-color: #2f9e6a;
+  background: #2f9e6a;
   color: #fff;
 }
 
