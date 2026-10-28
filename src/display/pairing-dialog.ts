@@ -1,7 +1,7 @@
 // 「手機遙控」視窗：顯示 QR Code 與連線狀態。視窗開著時才接受新手機配對。
-import qrcode from 'qrcode-generator'
 import { latencyLevel } from '../core/time'
 import { byId, listen } from '../shared/dom'
+import { qrSvg } from '../shared/qr'
 import type { HostView, RemoteHost } from './remote-host'
 import { showToast } from './toast'
 
@@ -52,10 +52,7 @@ export class PairingDialog {
   private update(view: HostView): void {
     if (view.url !== this.qrUrl) {
       this.qrUrl = view.url
-      const code = qrcode(0, 'M')
-      code.addData(view.url)
-      code.make()
-      this.qr.innerHTML = code.createSvgTag({ cellSize: 4, margin: 2, scalable: true })
+      this.qr.innerHTML = qrSvg(view.url)
       this.urlInput.value = view.url
     }
 

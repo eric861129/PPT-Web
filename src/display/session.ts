@@ -1,6 +1,6 @@
 // 一份開啟中的簡報：檢視模式（縮圖列 + 大圖）、放映模式（全螢幕）、
 // 講者檢視（觀眾視窗放投影機、這裡看目前頁／下一頁／備忘稿／計時）之間切換，
-// 處理鍵盤／滑鼠／手機輸入，並把播放狀態同步到畫面、觀眾視窗與手機上。
+// 處理鍵盤／滑鼠／手機輸入，並把播放狀態同步到畫面、觀眾視窗、遙控手機與台下觀眾的手機上。
 import type { DeckNotes } from '../core/deck'
 import { ShowController, type Command, type ShowState } from '../core/navigation'
 import type { DeckSummary, RemoteCommand } from '../core/protocol'
@@ -17,11 +17,15 @@ import type { SlideRenderer } from './renderer'
 import { SlideView } from './slide-view'
 import { ThumbnailStrip } from './thumbnails'
 import { showToast } from './toast'
+import type { ViewerDialog } from './viewer-dialog'
+import type { ViewerHost } from './viewer-host'
 
 const IDLE_MS = 2500
 const WHEEL_QUIET_MS = 300
 /** 手機縮圖的寬度（像素） */
 const PHONE_THUMB_WIDTH = 640
+/** 觀眾手機上的投影片寬度（像素）：夠兩指放大看小字 */
+const VIEWER_WIDTH = 1280
 
 export interface DeckSessionOptions {
   root: HTMLElement
@@ -33,6 +37,8 @@ export interface DeckSessionOptions {
   source: Blob
   remote: RemoteHost
   pairing: PairingDialog
+  viewers: ViewerHost
+  viewerDialog: ViewerDialog
   onClose: () => void
 }
 
@@ -43,6 +49,8 @@ export class DeckSession {
   private readonly source: Blob
   private readonly remote: RemoteHost
   private readonly pairing: PairingDialog
+  private readonly viewers: ViewerHost
+  private readonly viewerDialog: ViewerDialog
   private readonly onClose: () => void
   private readonly controller: ShowController
   private readonly view: SlideView
@@ -67,13 +75,15 @@ export class DeckSession {
   private idleTimer: ReturnType<typeof setTimeout> | undefined
   private lastWheel = 0
 
-  constructor({ root, renderer, title, notes, source, remote, pairing, onClose }: DeckSessionOptions) {
+  constructor({ root, renderer, title, notes, source, remote, pairing, viewers, viewerDialog, onClose }: DeckSessionOptions) {
     this.root = root
     this.renderer = renderer
     this.title = title
     this.source = source
     this.remote = remote
     this.pairing = pairing
+    this.viewers = viewers
+    this.viewerDialog = viewerDialog
     this.onClose = onClose
     this.controller = new ShowController(renderer.pageCount)
     this.view = new SlideView(renderer)
@@ -103,6 +113,11 @@ export class DeckSession {
       thumb: (index) => renderer.renderJpeg(index, PHONE_THUMB_WIDTH),
     })
     remote.start()
+    viewers.setDeck({
+      summary: { title, count: renderer.pageCount, aspect: renderer.aspect },
+      image: (index) => renderer.renderJpeg(index, VIEWER_WIDTH, 'prefetch'),
+    })
+    viewerDialog.deckTitle = title
 
     this.disposers.push(this.controller.subscribe((state) => this.render(state)))
     this.render(this.controller.current)
@@ -115,6 +130,8 @@ export class DeckSession {
     for (const dispose of this.disposers.splice(0)) dispose()
     this.remote.onCommand = () => {}
     this.remote.setDeck(null)
+    this.viewers.setDeck(null)
+    this.viewerDialog.hideProjection()
     this.view.destroy()
     this.nextView.destroy()
     this.thumbs.destroy()
@@ -137,8 +154,16 @@ export class DeckSession {
         // 「開始放映」只有 PowerPoint 模式用得到；網站自己放映要在電腦上按，才能進全螢幕
         return
       default:
+        if (this.dismissQr()) return
         return this.dispatch(cmd)
     }
+  }
+
+  /** 大螢幕上正顯示觀眾 QR Code 時，翻頁的第一下只用來收起它 */
+  private dismissQr(): boolean {
+    if (!this.viewerDialog.isProjecting) return false
+    this.viewerDialog.hideProjection()
+    return true
   }
 
   private timerAction(action: 'toggle' | 'reset'): void {
@@ -166,13 +191,18 @@ export class DeckSession {
   }
 
   private syncRemote(): void {
-    this.remote.setShow({ ...this.controller.current, showing: this.showing || this.presenting, timer: this.timer })
+    const live = this.showing || this.presenting
+    this.remote.setShow({ ...this.controller.current, showing: live, timer: this.timer })
+    this.viewers.setShow({ ...this.controller.current, live })
   }
 
   private onKeyAction(action: KeyAction): void {
     switch (action.kind) {
       case 'command':
+        if (this.dismissQr()) return
         return this.dispatch(action.command)
+      case 'toggleViewerQr':
+        return this.viewerDialog.toggleProjection()
       case 'startShow':
         // 講者檢視中按 F5 就回到第一頁
         if (this.presenting) return action.fromCurrent ? undefined : this.dispatch({ type: 'goto', index: 0 })
@@ -200,11 +230,14 @@ export class DeckSession {
     audience.onKey = (key) => void this.keyboard.handle(key)
     audience.onClick = () => this.dispatch({ type: 'next' })
     audience.onClosed = () => this.endPresenter()
+    audience.onQrHidden = () => this.viewerDialog.projectionHidden()
     if (!audience.open(this.controller.current)) {
       showToast('瀏覽器擋住了觀眾視窗。請允許這個網站開啟彈出式視窗，再按一次「講者檢視」。', 6000)
       return
     }
     this.audience = audience
+    // 講者檢視時，觀眾 QR Code 投到觀眾視窗上（投影機），不是筆電這邊
+    this.viewerDialog.setProjector({ show: (url, title) => audience.showQr(url, title), hide: () => audience.hideQr() })
     this.presenting = true
     if (!this.timer.started) this.timer.start()
     this.root.classList.add('is-presenting')
@@ -220,6 +253,7 @@ export class DeckSession {
     this.presenting = false
     const audience = this.audience
     this.audience = null
+    this.viewerDialog.setProjector(null)
     audience?.close()
     clearInterval(this.presenterClock)
     this.root.classList.remove('is-presenting')
@@ -325,6 +359,8 @@ export class DeckSession {
     on(byId('btn-presenter'), 'click', () => this.startPresenter())
     on(byId('btn-end-presenter'), 'click', () => this.endPresenter())
     on(byId('presenter-remote'), 'click', () => this.pairing.open())
+    on(byId('btn-viewers'), 'click', () => this.viewerDialog.open())
+    on(byId('presenter-viewers'), 'click', () => this.viewerDialog.open())
     on(byId('presenter-timer-toggle'), 'click', () => this.timerAction('toggle'))
     on(byId('presenter-timer-reset'), 'click', () => this.timerAction('reset'))
     on(byId('btn-close'), 'click', () => this.onClose())
@@ -338,13 +374,14 @@ export class DeckSession {
         case 'prev': return this.dispatch({ type: 'prev' })
         case 'next': return this.dispatch({ type: 'next' })
         case 'blank': return this.dispatch({ type: 'toggleBlank', mode: 'black' })
+        case 'qr': return this.viewerDialog.toggleProjection()
         case 'exit': return this.presenting ? this.endPresenter() : this.endShow()
       }
     })
 
     // 放映中或講者檢視中點一下大圖 = 下一頁；檢視模式雙擊大圖 = 從這頁開始放映
     on(this.stage, 'click', () => {
-      if (this.showing || this.presenting) this.dispatch({ type: 'next' })
+      if ((this.showing || this.presenting) && !this.dismissQr()) this.dispatch({ type: 'next' })
     })
     on(this.stage, 'dblclick', () => {
       if (!this.showing && !this.presenting) this.startShow(true)

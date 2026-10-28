@@ -106,6 +106,12 @@ describe('KeyboardInput', () => {
     expect(actions).toEqual([{ kind: 'togglePairing' }])
   })
 
+  it('projects the audience QR Code with V', () => {
+    const { actions, press } = setup()
+    press('V')
+    expect(actions).toEqual([{ kind: 'toggleViewerQr' }])
+  })
+
   it('leaves browser shortcuts alone', () => {
     const { actions, press } = setup()
     expect(press('f', { ctrlKey: true })).toBe(false)

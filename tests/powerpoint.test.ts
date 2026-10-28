@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseRemoteMessage } from '../src/core/protocol'
 import { BridgeClient } from '../src/powerpoint/bridge-client'
-import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, visibleSlides } from '../src/powerpoint/mapping'
+import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, toViewerShow, visibleSlides } from '../src/powerpoint/mapping'
 import { parseBridgeMessage, type BridgeDeck, type BridgeState } from '../src/powerpoint/protocol'
 
 const deck: BridgeDeck = {
@@ -69,6 +69,13 @@ describe('parseBridgeMessage', () => {
 })
 
 describe('mapping PowerPoint slides to phone pages', () => {
+  it('lets the audience follow only while the slideshow is running', () => {
+    expect(toViewerShow(state({ view: 3 }), 1)).toEqual({ live: true, index: 1, blank: 'black' })
+    expect(toViewerShow(state({ running: false, view: null }), 1)).toMatchObject({ live: false })
+    // 「放映結束」的黑畫面不算在放映
+    expect(toViewerShow(state({ view: 5 }), 2)).toMatchObject({ live: false })
+  })
+
   it('leaves hidden slides out of the page list', () => {
     expect(visibleSlides(deck).map((s) => s.index)).toEqual([1, 2, 4])
     expect(toDeckSummary(deck)).toMatchObject({ count: 3, mode: 'powerpoint', hasNotes: true })

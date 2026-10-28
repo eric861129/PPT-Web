@@ -1,0 +1,105 @@
+/* 投影到大螢幕的觀眾同步 QR Code（電腦主視窗和講者檢視的觀眾視窗共用） */
+
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+  padding: 5vh 5vw;
+  background:
+    radial-gradient(circle at 30% 40%, rgb(79 127 255 / 16%), transparent 55%),
+    rgb(12 13 16 / 97%);
+  color: #ececef;
+  cursor: pointer;
+  animation: qr-in 0.3s ease-out;
+}
+
+@keyframes qr-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.qr-card {
+  display: flex;
+  align-items: center;
+  gap: 6vw;
+  animation: qr-rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes qr-rise {
+  from {
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+.qr-code {
+  flex: none;
+  width: min(62vh, 44vw);
+  padding: min(2.4vh, 1.8vw);
+  border-radius: min(3vh, 2.2vw);
+  background: #fff;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 50%);
+}
+
+.qr-code svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr-text {
+  max-width: 36vw;
+}
+
+.qr-text p {
+  margin: 0;
+}
+
+.qr-title {
+  font-size: clamp(28px, 5.2vh, 64px);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.qr-deck {
+  margin-top: 3vh !important;
+  overflow: hidden;
+  color: #7a9fff;
+  font-size: clamp(16px, 3vh, 34px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-sub {
+  margin-top: 1.5vh !important;
+  color: #a4a6ae;
+  font-size: clamp(14px, 2.4vh, 28px);
+}
+
+.qr-close {
+  margin: 0;
+  color: #70737c;
+  font-size: clamp(12px, 1.8vh, 18px);
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .qr-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .qr-code {
+    width: min(70vw, 50vh);
+  }
+
+  .qr-text {
+    max-width: 90vw;
+  }
+}

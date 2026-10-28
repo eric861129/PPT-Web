@@ -1,17 +1,19 @@
 // PowerPoint 模式：由電腦上的 PowerPoint 放映，網站只負責轉接手機指令、
-// 顯示目前頁與備忘稿。手機遙控沿用 RemoteHost，跟 PDF 模式完全一樣。
+// 顯示目前頁與備忘稿。手機遙控沿用 RemoteHost、觀眾同步沿用 ViewerHost，跟 PDF 模式完全一樣。
 import type { RemoteCommand } from '../core/protocol'
 import { Stopwatch } from '../core/stopwatch'
 import { KeyboardInput, type KeyAction } from '../display/keyboard'
 import type { PairingDialog } from '../display/pairing-dialog'
 import type { RemoteHost } from '../display/remote-host'
+import type { ViewerDialog } from '../display/viewer-dialog'
+import type { ViewerHost } from '../display/viewer-host'
 import { byId, listen, loadPref, messageParagraph, renderNoteParagraphs, savePref } from '../shared/dom'
 import { BridgeClient, type BridgeStatus } from './bridge-client'
-import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, visibleSlides } from './mapping'
+import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, toViewerShow, visibleSlides } from './mapping'
 import { VIEW_BLACK, VIEW_DONE, VIEW_WHITE, type BridgeCommand, type BridgeDeck, type BridgeMessage, type BridgeState } from './protocol'
 
-/** 電腦預覽和手機共用同一份縮圖 */
-const THUMB_WIDTH = 800
+/** 電腦預覽、遙控手機和觀眾手機共用同一份縮圖；1280 是橋接程式的上限，觀眾兩指放大也看得清楚 */
+const THUMB_WIDTH = 1280
 const NOTE_SIZES = [14, 16, 18, 20, 22, 26, 30]
 const DEFAULT_NOTE_SIZE = 20
 
@@ -19,6 +21,8 @@ export interface PowerPointSessionOptions {
   root: HTMLElement
   remote: RemoteHost
   pairing: PairingDialog
+  viewers: ViewerHost
+  viewerDialog: ViewerDialog
   onClose: () => void
   bridge?: BridgeClient
 }
@@ -27,6 +31,8 @@ export class PowerPointSession {
   private readonly root: HTMLElement
   private readonly remote: RemoteHost
   private readonly pairing: PairingDialog
+  private readonly viewers: ViewerHost
+  private readonly viewerDialog: ViewerDialog
   private readonly bridge: BridgeClient
   private readonly keyboard: KeyboardInput
   private readonly disposers: Array<() => void> = []
@@ -41,10 +47,12 @@ export class PowerPointSession {
   private noteSize: number
   private shownNotes = -1
 
-  constructor({ root, remote, pairing, onClose, bridge }: PowerPointSessionOptions) {
+  constructor({ root, remote, pairing, viewers, viewerDialog, onClose, bridge }: PowerPointSessionOptions) {
     this.root = root
     this.remote = remote
     this.pairing = pairing
+    this.viewers = viewers
+    this.viewerDialog = viewerDialog
     this.bridge = bridge ?? new BridgeClient()
     this.keyboard = new KeyboardInput((action) => this.onKey(action))
 
@@ -56,6 +64,7 @@ export class PowerPointSession {
     this.remote.onCommand = (cmd) => this.fromRemote(cmd)
     this.remote.setDeck(null)
     this.remote.start()
+    this.viewers.setDeck(null)
     this.bridge.start()
     this.bind(onClose)
     this.applyNoteSize()
@@ -67,6 +76,8 @@ export class PowerPointSession {
     this.bridge.stop()
     this.remote.onCommand = () => {}
     this.remote.setDeck(null)
+    this.viewers.setDeck(null)
+    this.viewerDialog.hideProjection()
     this.resetThumbs()
     byId('ppt-notes').replaceChildren()
   }
@@ -88,10 +99,17 @@ export class PowerPointSession {
     this.resetThumbs()
     this.shownNotes = -1
     if (this.deck) {
-      this.remote.setDeck({ summary: toDeckSummary(this.deck), thumb: (i) => this.thumbForPage(i) })
+      const summary = toDeckSummary(this.deck)
+      this.remote.setDeck({ summary, thumb: (i) => this.thumbForPage(i) })
+      this.viewers.setDeck({
+        summary: { title: summary.title, count: summary.count, aspect: summary.aspect },
+        image: (i) => this.thumbForPage(i),
+      })
+      this.viewerDialog.deckTitle = summary.title
       this.pushShow()
     } else {
       this.remote.setDeck(null)
+      this.viewers.setDeck(null)
     }
     this.render()
   }
@@ -108,7 +126,9 @@ export class PowerPointSession {
   }
 
   private pushShow(): void {
-    if (this.deck && this.state) this.remote.setShow(toShow(this.state, this.index, this.timer))
+    if (!this.deck || !this.state) return
+    this.remote.setShow(toShow(this.state, this.index, this.timer))
+    this.viewers.setShow(toViewerShow(this.state, this.index))
   }
 
   private fromRemote(cmd: RemoteCommand): void {
@@ -142,6 +162,8 @@ export class PowerPointSession {
         return
       case 'togglePairing':
         return this.pairing.toggle()
+      case 'toggleViewerQr':
+        return this.viewerDialog.toggleProjection()
       case 'toggleFullscreen':
       case 'startPresenter':
         // PowerPoint 自己有全螢幕和簡報者檢視
@@ -294,6 +316,7 @@ export class PowerPointSession {
     }, { capture: true })
 
     on(byId('ppt-remote'), 'click', () => this.pairing.open())
+    on(byId('ppt-viewers'), 'click', () => this.viewerDialog.open())
     on(byId('ppt-start'), 'click', () => this.start(false))
     on(byId('ppt-start-current'), 'click', () => this.start(true))
     on(byId('ppt-end'), 'click', () => this.send({ type: 'end' }))

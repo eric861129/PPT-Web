@@ -9,6 +9,8 @@ export type KeyAction =
   | { kind: 'toggleFullscreen' }
   | { kind: 'togglePairing' }
   | { kind: 'startPresenter' }
+  /** 把觀眾同步的 QR Code 投影到大螢幕／收起來 */
+  | { kind: 'toggleViewerQr' }
 
 export type KeyLike = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey'>
 
@@ -88,6 +90,10 @@ export class KeyboardInput {
       case 'q':
       case 'Q':
         this.onAction({ kind: 'togglePairing' })
+        return true
+      case 'v':
+      case 'V':
+        this.onAction({ kind: 'toggleViewerQr' })
         return true
     }
     return false

@@ -3,6 +3,7 @@
 import type { DeckSummary, RemoteCommand } from '../core/protocol'
 import type { Stopwatch } from '../core/stopwatch'
 import type { ShowSnapshot } from '../display/remote-host'
+import type { ViewerShow } from '../display/viewer-host'
 import { VIEW_BLACK, VIEW_DONE, VIEW_WHITE, type BridgeCommand, type BridgeDeck, type BridgeSlide, type BridgeState } from './protocol'
 
 export function visibleSlides(deck: BridgeDeck): BridgeSlide[] {
@@ -38,6 +39,12 @@ export function toShow(state: BridgeState, index: number, timer: Stopwatch | nul
   if (state.running && state.clickCount > 0) show.clicks = { index: state.clickIndex, count: state.clickCount }
   if (state.running && state.view === VIEW_DONE) show.ended = true
   return show
+}
+
+/** 觀眾只在放映中跟著翻頁；停在「放映結束」的黑畫面時算是沒在放映 */
+export function toViewerShow(state: BridgeState, index: number): ViewerShow {
+  const blank = state.view === VIEW_BLACK ? 'black' : state.view === VIEW_WHITE ? 'white' : 'off'
+  return { live: state.running && state.view !== VIEW_DONE, index, blank }
 }
 
 /** 手機或鍵盤的指令換成橋接程式的指令；做不到的回傳 null */

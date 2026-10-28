@@ -1,5 +1,6 @@
 import '../styles/base.css'
 import '../styles/display.css'
+import '../styles/qr-overlay.css'
 import { alignNotes, type DeckNotes, type SlideSource } from '../core/deck'
 import { parsePptx, PptxError } from '../core/pptx'
 import { peerTransport } from '../net/peerjs'
@@ -21,6 +22,8 @@ import {
 import { RemoteHost } from './remote-host'
 import { openPdf } from './renderer'
 import { DeckSession } from './session'
+import { ViewerDialog } from './viewer-dialog'
+import { ViewerHost } from './viewer-host'
 
 const APP_TITLE = document.title
 /** 目前開著哪一份簡報（sessionStorage），重新整理時用來恢復 */
@@ -29,6 +32,9 @@ const OPEN_DECK_KEY = 'ppt-web:open-deck'
 // 手機遙控主機跟著頁面活著，換簡報時手機不用重新配對。開啟第一份簡報時才開始連線。
 const remote = new RemoteHost(peerTransport, { pageUrl: location.href })
 const pairing = new PairingDialog(remote)
+// 觀眾同步也跟著頁面活著；換簡報時觀眾不用重新掃描。打開「觀眾同步」視窗時才開始分享
+const viewers = new ViewerHost(peerTransport, { pageUrl: location.href })
+const viewerDialog = new ViewerDialog(viewers)
 
 const startScreen = byId('start')
 const deckScreen = byId('deck')
@@ -53,7 +59,7 @@ function openPowerPoint(): void {
   startScreen.hidden = true
   pptScreen.hidden = false
   if (location.hash !== PPT_HASH) history.replaceState(null, '', PPT_HASH)
-  ppt = new PowerPointSession({ root: pptScreen, remote, pairing, onClose: closePowerPoint })
+  ppt = new PowerPointSession({ root: pptScreen, remote, pairing, viewers, viewerDialog, onClose: closePowerPoint })
 }
 
 function closePowerPoint(): void {
@@ -126,7 +132,18 @@ async function openDeck(files: StoredDeckFiles): Promise<boolean> {
     // 先讓畫面可見，SlideView 才量得到尺寸
     startScreen.hidden = true
     deckScreen.hidden = false
-    session = new DeckSession({ root: deckScreen, renderer, title, notes, source: pdf, remote, pairing, onClose: closeDeck })
+    session = new DeckSession({
+      root: deckScreen,
+      renderer,
+      title,
+      notes,
+      source: pdf,
+      remote,
+      pairing,
+      viewers,
+      viewerDialog,
+      onClose: closeDeck,
+    })
     setOpenDeck(deckId(pdf))
 
     // 記到「最近開過的簡報」，第一頁縮圖在背景產生
@@ -264,6 +281,8 @@ listen<DragEvent>(window, 'drop', (e) => {
 // ---------- 啟動 ----------
 
 async function boot(): Promise<void> {
+  // 分享到一半重新整理：觀眾的手機會自己連回來
+  viewers.resume()
   if (location.hash === PPT_HASH) return openPowerPoint()
   // 電腦端重新整理：自動打開剛才那份簡報，手機會自己連回來
   const openId = openDeckId()

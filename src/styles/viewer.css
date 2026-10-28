@@ -1,0 +1,375 @@
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viewer {
+  --aspect: 1.7778;
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------- 上方狀態列 ---------- */
+
+.v-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.v-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.v-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.viewer[data-conn="connected"] .v-dot {
+  background: #f2c46d;
+}
+
+/* 跟著講者同步中：綠燈加一圈慢慢擴散的光 */
+.viewer[data-live="true"] .v-dot {
+  background: #3ecf8e;
+  animation: v-ping 1.8s ease-out infinite;
+}
+
+.viewer[data-live="true"] .v-status {
+  color: var(--text);
+}
+
+.viewer[data-conn="reconnecting"] .v-dot {
+  background: #f2c46d;
+  animation: v-blink 1s ease-in-out infinite alternate;
+}
+
+@keyframes v-ping {
+  0% {
+    box-shadow: 0 0 0 0 rgb(62 207 142 / 55%);
+  }
+  100% {
+    box-shadow: 0 0 0 9px rgb(62 207 142 / 0%);
+  }
+}
+
+@keyframes v-blink {
+  to {
+    opacity: 0.3;
+  }
+}
+
+.v-title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v-page {
+  margin: 0;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+/* ---------- 投影片 ---------- */
+
+.v-stage {
+  position: relative;
+  padding: 0 12px;
+}
+
+.v-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, calc((100dvh - 240px) * var(--aspect)));
+  min-width: min(100%, 280px);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #24262b;
+  aspect-ratio: var(--aspect);
+}
+
+.v-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: v-fade 0.25s ease-out;
+}
+
+@keyframes v-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.v-loading {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.v-cover {
+  position: absolute;
+  inset: 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: min(calc(100% - 24px), calc((100dvh - 240px) * var(--aspect)));
+  min-width: min(calc(100% - 24px), 280px);
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 10px;
+  background: #1b1d22;
+  text-align: center;
+}
+
+.v-cover[data-kind="blank"] {
+  background: #000;
+}
+
+.v-cover-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.v-cover-text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+/* ---------- 翻看 ---------- */
+
+/* 直拿手機時翻頁鈕放在最下面，大拇指按得到 */
+.v-controls {
+  order: 4;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 8px 12px 16px;
+}
+
+.v-btn {
+  min-height: 56px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+
+.v-btn:disabled {
+  opacity: 0.35;
+}
+
+.v-arrow {
+  display: grid;
+  place-items: center;
+}
+
+.v-follow,
+.v-btn-primary {
+  padding: 0 16px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.v-follow {
+  animation: v-fade 0.2s ease-out;
+}
+
+.v-hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.v-seen {
+  order: 2;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 14px 12px 8px;
+}
+
+.v-seen h2 {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.v-seen-list {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 6px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.v-chip {
+  position: relative;
+  min-width: 46px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  touch-action: manipulation;
+}
+
+.v-chip.is-current {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
+/* 講者目前在的那一頁 */
+.v-chip.is-live::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3ecf8e;
+}
+
+.v-tip {
+  order: 3;
+  margin: auto 0 0;
+  padding: 16px 16px 4px;
+  color: var(--text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- 連線中、等待講者 ---------- */
+
+.v-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.v-overlay-card {
+  max-width: 340px;
+  text-align: center;
+}
+
+.v-overlay-card h1 {
+  margin: 16px 0 8px;
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.v-overlay-card p {
+  margin: 0 0 20px;
+  color: var(--text-2);
+}
+
+/* ---------- 手機橫拿：投影片盡量大，其他東西收起來 ---------- */
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .viewer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .v-top {
+    grid-column: 1 / -1;
+    padding: 6px 16px;
+  }
+
+  .v-stage {
+    min-height: 0;
+    padding: 0 0 8px 12px;
+  }
+
+  .v-frame,
+  .v-cover {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    background: transparent;
+    aspect-ratio: auto;
+  }
+
+  .v-cover {
+    inset: 0 0 8px 12px;
+    width: auto;
+    height: auto;
+    background: #1b1d22;
+  }
+
+  .v-controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    width: 96px;
+    padding: 0 12px 8px;
+  }
+
+  .v-follow {
+    order: 3;
+    padding: 8px 6px;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .v-hint,
+  .v-seen,
+  .v-tip {
+    display: none;
+  }
+}

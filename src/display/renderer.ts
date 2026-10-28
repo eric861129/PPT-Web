@@ -102,10 +102,10 @@ export class SlideRenderer {
     return promise
   }
 
-  /** 給手機用的 JPEG 縮圖，寬度是像素 */
-  async renderJpeg(index: number, width: number): Promise<ArrayBuffer> {
+  /** 給手機用的 JPEG，寬度是像素 */
+  async renderJpeg(index: number, width: number, priority: RenderPriority = 'thumbnail'): Promise<ArrayBuffer> {
     const box = { width, height: Math.round(width / this.aspect) }
-    const canvas = await this.render(index, box, 'thumbnail', { cache: false })
+    const canvas = await this.render(index, box, priority, { cache: false })
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8))
     if (!blob) throw new Error('JPEG encoding failed')
     return blob.arrayBuffer()

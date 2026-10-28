@@ -2,22 +2,25 @@
 // 這裡收到的按鍵和點擊一律轉回主視窗處理。
 import '../styles/base.css'
 import '../styles/audience.css'
+import '../styles/qr-overlay.css'
 import type { AudienceMessage, ControlMessage } from '../display/audience-window'
 import { openPdf, type SlideRenderer } from '../display/renderer'
 import { SlideView } from '../display/slide-view'
 import { byId, listen } from '../shared/dom'
+import { qrSvg } from '../shared/qr'
 
 const IDLE_MS = 2000
 /** 這些鍵交給主視窗處理，瀏覽器本身不要反應（例如空白鍵捲動、Backspace 上一頁） */
 const FORWARDED_KEYS = new Set([
   'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', ' ', 'PageDown', 'PageUp', 'Enter', 'Backspace',
-  'Home', 'End', 'b', 'B', 'w', 'W', '.', ',', 'n', 'N', 'p', 'P', 'F5', 'Escape',
+  'Home', 'End', 'b', 'B', 'w', 'W', '.', ',', 'n', 'N', 'p', 'P', 'v', 'V', 'F5', 'Escape',
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 ])
 
 const root = byId('audience')
 const hint = byId('audience-hint')
 const message = byId('audience-message')
+const qrOverlay = byId('qr-overlay')
 const opener = window.opener as Window | null
 
 let renderer: SlideRenderer | null = null
@@ -37,6 +40,22 @@ function showMessage(text: string): void {
 function goFullscreen(): boolean {
   if (document.fullscreenElement) return false
   document.documentElement.requestFullscreen?.().catch(() => {})
+  return true
+}
+
+function showQr(url: string | null, title = ''): void {
+  if (url) {
+    byId('qr-overlay-code').innerHTML = qrSvg(url)
+    byId('qr-overlay-deck').textContent = title
+  }
+  qrOverlay.hidden = !url
+}
+
+/** QR Code 開著時，按鍵或點擊只用來收起它，不翻頁 */
+function dismissQr(): boolean {
+  if (qrOverlay.hidden) return false
+  showQr(null)
+  post({ type: 'audience-qr-hidden' })
   return true
 }
 
@@ -67,6 +86,9 @@ async function receive(e: MessageEvent): Promise<void> {
       view?.show(msg.state.index)
       view?.setBlank(msg.state.blank)
       return
+    case 'qr':
+      showQr(msg.url, msg.title)
+      return
     case 'close':
       window.close()
       return
@@ -81,6 +103,10 @@ if (!opener) {
 
   // 還沒全螢幕時，第一個按鍵或點擊用來進全螢幕（這時才算使用者操作，瀏覽器才允許）
   listen<KeyboardEvent>(window, 'keydown', (e) => {
+    if (!e.repeat && dismissQr()) {
+      e.preventDefault()
+      return
+    }
     if (e.key !== 'Escape' && goFullscreen()) {
       e.preventDefault()
       return
@@ -90,6 +116,7 @@ if (!opener) {
     post({ type: 'audience-key', key: e.key, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey })
   })
   listen(window, 'click', () => {
+    if (dismissQr()) return
     if (!goFullscreen()) post({ type: 'audience-click' })
   })
   listen(document, 'fullscreenchange', updateHint)

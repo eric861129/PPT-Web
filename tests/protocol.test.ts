@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createRoomId, isRoomId, PairingRegistry, remoteUrl, roomIdFromHash } from '../src/core/pairing'
+import { createRoomId, createViewerRoomId, isRoomId, isViewerRoomId, PairingRegistry, remoteUrl, roomIdFromHash, viewerRoomFromHash, viewerUrl } from '../src/core/pairing'
 import { parseCommand, parseDisplayMessage, parseRemoteMessage, RecentIds } from '../src/core/protocol'
+import { parseViewerHostMessage, parseViewerMessage } from '../src/core/viewer-protocol'
 
 describe('parseCommand', () => {
   it('accepts every navigation command', () => {
@@ -114,5 +115,45 @@ describe('room ids and URLs', () => {
     expect(roomIdFromHash(`#r=${id}`)).toBe(id)
     expect(roomIdFromHash('#r=not-valid')).toBeNull()
     expect(roomIdFromHash('')).toBeNull()
+  })
+})
+
+describe('viewer links', () => {
+  it('uses ids that can never open the phone remote', () => {
+    const id = createViewerRoomId()
+    expect(isViewerRoomId(id)).toBe(true)
+    expect(isRoomId(id)).toBe(false)
+    expect(roomIdFromHash(`#r=${id}`)).toBeNull()
+    expect(viewerRoomFromHash(`#v=${createRoomId()}`)).toBeNull()
+  })
+
+  it('builds the viewer url and reads it back', () => {
+    const id = createViewerRoomId()
+    const url = viewerUrl('http://huangchiyu.com/PPT-Web/index.html#powerpoint', id)
+    expect(url).toBe(`https://huangchiyu.com/PPT-Web/view.html#v=${id}`)
+    expect(viewerRoomFromHash(new URL(url).hash)).toBe(id)
+  })
+})
+
+describe('viewer messages', () => {
+  it('accepts only well-formed requests from viewers', () => {
+    expect(parseViewerMessage({ type: 'join', v: 1 })).toEqual({ type: 'join', v: 1 })
+    expect(parseViewerMessage({ type: 'slide', index: 3 })).toEqual({ type: 'slide', index: 3 })
+    expect(parseViewerMessage({ type: 'slide', index: -1 })).toBeNull()
+    expect(parseViewerMessage({ type: 'slide', index: 1.5 })).toBeNull()
+    // 觀眾不能送翻頁指令
+    expect(parseViewerMessage({ type: 'command', command: { type: 'next' } })).toBeNull()
+  })
+
+  it('checks what the presenter sends before showing it', () => {
+    expect(parseViewerHostMessage({ type: 'closed', reason: 'stopped' })).toEqual({ type: 'closed', reason: 'stopped' })
+    expect(parseViewerHostMessage({ type: 'closed', reason: 'whatever' })).toBeNull()
+    expect(parseViewerHostMessage({ type: 'deck', deck: null })).toEqual({ type: 'deck', deck: null })
+    expect(parseViewerHostMessage({ type: 'deck', deck: { title: 'T', count: 3, aspect: 0 } })).toBeNull()
+    expect(parseViewerHostMessage({ type: 'state', state: { live: true, index: 2, blank: 'off', seen: [2, 0, 2] } })).toEqual({
+      type: 'state',
+      state: { live: true, index: 2, blank: 'off', seen: [0, 2] },
+    })
+    expect(parseViewerHostMessage({ type: 'state', state: { live: true, index: 2, blank: 'off', seen: ['2'] } })).toBeNull()
   })
 })

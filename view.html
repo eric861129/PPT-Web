@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 不鎖縮放：觀眾可以用兩指放大投影片上的小字 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0f1013" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>同步看簡報 · PPT-Web</title>
+  </head>
+  <body>
+    <main id="viewer" class="viewer" data-conn="connecting">
+      <header class="v-top">
+        <p class="v-status"><span class="v-dot" aria-hidden="true"></span><span id="v-status-text">連線中…</span></p>
+        <h1 id="v-title" class="v-title"></h1>
+        <p id="v-page" class="v-page" aria-live="polite"></p>
+      </header>
+
+      <section id="v-stage" class="v-stage" aria-label="投影片">
+        <div id="v-frame" class="v-frame"></div>
+        <div id="v-cover" class="v-cover" hidden>
+          <p id="v-cover-title" class="v-cover-title"></p>
+          <p id="v-cover-text" class="v-cover-text"></p>
+        </div>
+      </section>
+
+      <nav class="v-controls" aria-label="翻看講過的頁">
+        <button id="v-prev" type="button" class="v-btn v-arrow" aria-label="上一頁">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button id="v-follow" type="button" class="v-btn v-follow" hidden></button>
+        <p id="v-hint" class="v-hint"></p>
+        <button id="v-next" type="button" class="v-btn v-arrow" aria-label="下一頁">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </nav>
+
+      <section id="v-seen" class="v-seen" aria-labelledby="v-seen-title" hidden>
+        <h2 id="v-seen-title">講過的頁</h2>
+        <ol id="v-seen-list" class="v-seen-list"></ol>
+      </section>
+
+      <p class="v-tip">把手機轉成橫向，投影片會更大；也可以用兩指放大看小字。</p>
+
+      <div id="v-overlay" class="v-overlay">
+        <div class="v-overlay-card">
+          <img src="./favicon.svg" alt="" width="44" height="44" />
+          <h1 id="v-overlay-title">同步看簡報</h1>
+          <p id="v-overlay-text">正在連線到講者的電腦…</p>
+          <button id="v-reload" type="button" class="v-btn v-btn-primary" hidden>重新整理</button>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./src/viewer/main.ts"></script>
+  </body>
+</html>

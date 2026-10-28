@@ -49,21 +49,43 @@ export function isRoomId(value: string): boolean {
   return /^pptweb-[a-z0-9]{20}$/.test(value)
 }
 
+/** 觀眾同步用另一組 id：觀眾的連結永遠連不到手機遙控 */
+export function createViewerRoomId(): string {
+  return `pptview-${randomToken(20)}`
+}
+
+export function isViewerRoomId(value: string): boolean {
+  return /^pptview-[a-z0-9]{20}$/.test(value)
+}
+
 const LOCAL_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|\d+\.\d+\.\d+\.\d+)$/
 
 /**
  * 手機要開的網址。room id 放在 # 後面，不會送到網站伺服器。
  * 正式網站一律用 https（手機螢幕常亮需要 https）；本機與區網 IP 開發時維持原樣。
  */
-export function remoteUrl(pageUrl: string, roomId: string): string {
-  const url = new URL('remote.html', pageUrl)
+function pageLink(pageUrl: string, page: string, hash: string): string {
+  const url = new URL(page, pageUrl)
   if (url.protocol === 'http:' && !LOCAL_HOST.test(url.hostname)) url.protocol = 'https:'
   url.search = ''
-  url.hash = `r=${roomId}`
+  url.hash = hash
   return url.href
+}
+
+export function remoteUrl(pageUrl: string, roomId: string): string {
+  return pageLink(pageUrl, 'remote.html', `r=${roomId}`)
+}
+
+export function viewerUrl(pageUrl: string, roomId: string): string {
+  return pageLink(pageUrl, 'view.html', `v=${roomId}`)
 }
 
 export function roomIdFromHash(hash: string): string | null {
   const id = new URLSearchParams(hash.replace(/^#/, '')).get('r')
   return id && isRoomId(id) ? id : null
+}
+
+export function viewerRoomFromHash(hash: string): string | null {
+  const id = new URLSearchParams(hash.replace(/^#/, '')).get('v')
+  return id && isViewerRoomId(id) ? id : null
 }

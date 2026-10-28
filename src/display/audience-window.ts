@@ -9,11 +9,15 @@ export type AudienceMessage =
   | { type: 'audience-ready' }
   | ({ type: 'audience-key' } & KeyLike)
   | { type: 'audience-click' }
+  /** 觀眾視窗上的 QR Code 被按鍵或點擊收起來了 */
+  | { type: 'audience-qr-hidden' }
 
 /** 主視窗 → 觀眾視窗 */
 export type ControlMessage =
   | { type: 'deck'; pdf: ArrayBuffer; title: string; state: ShowState }
   | { type: 'state'; state: ShowState }
+  /** url 是 null 時收起 QR Code */
+  | { type: 'qr'; url: string | null; title?: string }
   | { type: 'close' }
 
 const WINDOW_NAME = 'ppt-web-audience'
@@ -36,6 +40,7 @@ export class AudienceWindow {
   onKey: (key: KeyLike) => void = () => {}
   onClick: () => void = () => {}
   onClosed: () => void = () => {}
+  onQrHidden: () => void = () => {}
 
   private win: Window | null = null
   private state: ShowState = { index: 0, blank: 'off' }
@@ -75,6 +80,14 @@ export class AudienceWindow {
     this.post({ type: 'state', state })
   }
 
+  showQr(url: string, title: string): void {
+    this.post({ type: 'qr', url, title })
+  }
+
+  hideQr(): void {
+    this.post({ type: 'qr', url: null })
+  }
+
   close(): void {
     this.post({ type: 'close' })
     this.win?.close()
@@ -100,6 +113,8 @@ export class AudienceWindow {
         return this.onKey({ key: String(msg.key), shiftKey: !!msg.shiftKey, ctrlKey: !!msg.ctrlKey, metaKey: !!msg.metaKey, altKey: !!msg.altKey })
       case 'audience-click':
         return this.onClick()
+      case 'audience-qr-hidden':
+        return this.onQrHidden()
     }
   }
 

@@ -588,6 +588,29 @@
   margin-right: auto;
 }
 
+/* ---------- 觀眾同步視窗 ---------- */
+
+.viewer-dialog {
+  width: min(700px, calc(100vw - 32px));
+}
+
+.viewer-dialog .pair-body {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.viewer-lead {
+  margin: 0 0 16px;
+  line-height: 1.7;
+}
+
+.viewer-dialog .pair-foot {
+  flex-wrap: wrap;
+}
+
+.pair-status[data-status="off"] .status-dot {
+  background: var(--text-3);
+}
+
 @media (max-width: 560px) {
   .pair-body {
     grid-template-columns: minmax(0, 1fr);
@@ -596,6 +619,10 @@
   .pair-qr {
     width: 220px;
     margin: 0 auto;
+  }
+
+  .viewer-dialog .pair-body {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

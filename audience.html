@@ -16,6 +16,18 @@
       </div>
       <p id="audience-message" class="audience-message" hidden></p>
     </main>
+
+    <div id="qr-overlay" class="qr-overlay" hidden>
+      <div class="qr-card">
+        <div id="qr-overlay-code" class="qr-code"></div>
+        <div class="qr-text">
+          <p class="qr-title">掃描 QR Code<br />在手機上同步看簡報</p>
+          <p id="qr-overlay-deck" class="qr-deck"></p>
+          <p class="qr-sub">跟著講者翻頁，也能往回看講過的頁</p>
+        </div>
+      </div>
+      <p class="qr-close">按任意鍵或點一下收起</p>
+    </div>
     <script type="module" src="./src/audience/main.ts"></script>
   </body>
 </html>

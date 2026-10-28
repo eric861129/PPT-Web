@@ -11,3 +11,8 @@ export function showToast(text: string, ms = TOAST_MS): void {
   clearTimeout(timer)
   timer = setTimeout(() => (toast.hidden = true), ms)
 }
+
+export function hideToast(): void {
+  clearTimeout(timer)
+  byId('toast').hidden = true
+}

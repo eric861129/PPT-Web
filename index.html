@@ -57,6 +57,11 @@
             手機遙控
             <span class="badge remote-count" hidden></span>
           </button>
+          <button id="btn-viewers" type="button" class="btn btn-remote" title="讓觀眾在手機上同步看簡報">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            觀眾同步
+            <span class="badge viewer-count" hidden></span>
+          </button>
           <button id="btn-presenter" type="button" class="btn" title="觀眾畫面放投影機，筆電看備忘稿和計時（Alt+F5）">講者檢視</button>
           <button id="btn-show-current" type="button" class="btn">從目前頁放映</button>
           <button id="btn-show-start" type="button" class="btn btn-primary">從頭放映</button>
@@ -71,6 +76,10 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
             <span class="badge remote-count" hidden></span>
           </button>
+          <button id="presenter-viewers" type="button" class="btn btn-ghost btn-remote" title="觀眾同步（V 投影 QR Code）" aria-label="觀眾同步">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <span class="badge viewer-count" hidden></span>
+          </button>
           <button id="btn-end-presenter" type="button" class="btn">結束講者檢視</button>
         </div>
       </header>
@@ -83,6 +92,7 @@
           <span id="show-indicator" class="tool-indicator"></span>
           <button type="button" class="tool" data-action="next" aria-label="下一頁"></button>
           <button type="button" class="tool" data-action="blank" aria-label="黑幕"></button>
+          <button type="button" class="tool" data-action="qr" aria-label="顯示觀眾同步的 QR Code（V）" title="顯示觀眾同步的 QR Code（V）"></button>
           <button type="button" class="tool" data-action="exit" aria-label="結束放映"></button>
         </div>
         <p id="jump" class="jump" hidden></p>
@@ -116,6 +126,7 @@
         <span><kbd>W</kbd> 白幕</span>
         <span>數字 + <kbd>Enter</kbd> 跳頁</span>
         <span><kbd>Q</kbd> 手機遙控</span>
+        <span><kbd>V</kbd> 觀眾 QR Code</span>
       </footer>
     </div>
 
@@ -128,6 +139,11 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
             手機遙控
             <span class="badge remote-count" hidden></span>
+          </button>
+          <button id="ppt-viewers" type="button" class="btn btn-remote" title="讓觀眾在手機上同步看簡報">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            觀眾同步
+            <span class="badge viewer-count" hidden></span>
           </button>
           <button id="ppt-start-current" type="button" class="btn" hidden>從目前頁放映</button>
           <button id="ppt-start" type="button" class="btn btn-primary" hidden>從頭放映</button>
@@ -191,6 +207,7 @@
         <span><kbd>Esc</kbd> 結束放映</span>
         <span><kbd>B</kbd> 黑幕</span>
         <span><kbd>Q</kbd> 手機遙控</span>
+        <span><kbd>V</kbd> 觀眾 QR Code</span>
       </footer>
     </div>
 
@@ -225,6 +242,48 @@
         <button type="button" class="btn btn-primary" data-close>完成</button>
       </footer>
     </dialog>
+
+    <dialog id="viewer-dialog" class="pair-dialog viewer-dialog" aria-labelledby="viewer-title">
+      <header class="pair-head">
+        <h2 id="viewer-title">觀眾同步</h2>
+        <button type="button" class="tool pair-x" data-close aria-label="關閉">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+      <div class="pair-body">
+        <div id="viewer-qr" class="pair-qr" role="img" aria-label="觀眾同步網址的 QR Code"></div>
+        <div class="pair-info">
+          <p class="viewer-lead">觀眾用手機掃描，就能跟著看目前這一頁，也能往回翻看已經講過的頁。</p>
+          <p id="viewer-status" class="pair-status" data-status="off">
+            <span class="status-dot" aria-hidden="true"></span><span id="viewer-status-text"></span>
+          </p>
+          <div class="pair-url">
+            <input id="viewer-url" type="text" readonly aria-label="觀眾同步網址" />
+            <button id="viewer-copy" type="button" class="btn">複製</button>
+          </div>
+          <p class="pair-note">觀眾看不到備忘稿，也看不到還沒講到的頁；只能看，不能翻你的簡報。這個連結會一直沿用，可以把 QR Code 放進投影片裡；想讓舊連結失效就按「換新連結」。</p>
+        </div>
+      </div>
+      <footer class="pair-foot">
+        <button id="viewer-renew" type="button" class="btn btn-ghost">換新連結</button>
+        <button id="viewer-download" type="button" class="btn">下載 QR Code 圖片</button>
+        <button id="viewer-toggle" type="button" class="btn">停止分享</button>
+        <button id="viewer-project" type="button" class="btn btn-primary">投影到大螢幕</button>
+      </footer>
+    </dialog>
+
+    <!-- 投影到大螢幕的 QR Code：按任意鍵或點一下收起來 -->
+    <div id="qr-overlay" class="qr-overlay" hidden>
+      <div class="qr-card">
+        <div id="qr-overlay-code" class="qr-code"></div>
+        <div class="qr-text">
+          <p class="qr-title">掃描 QR Code<br />在手機上同步看簡報</p>
+          <p id="qr-overlay-deck" class="qr-deck"></p>
+          <p class="qr-sub">跟著講者翻頁，也能往回看講過的頁</p>
+        </div>
+      </div>
+      <p class="qr-close">按任意鍵或點一下收起</p>
+    </div>
 
     <script type="module" src="./src/display/main.ts"></script>
   </body>

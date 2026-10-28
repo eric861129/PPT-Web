@@ -10,6 +10,7 @@ export default defineConfig({
         display: resolve(import.meta.dirname, 'index.html'),
         remote: resolve(import.meta.dirname, 'remote.html'),
         audience: resolve(import.meta.dirname, 'audience.html'),
+        viewer: resolve(import.meta.dirname, 'view.html'),
       },
     },
   },

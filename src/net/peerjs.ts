@@ -20,6 +20,21 @@ const FATAL_ERRORS = new Set([
 let peerModule: Promise<typeof import('peerjs')> | undefined
 const loadPeerJs = () => (peerModule ??= import('peerjs'))
 
+/**
+ * 配對伺服器。預設用免費的 PeerJS Cloud；它對同一個 IP 的新連線數有上限，
+ * 觀眾很多時可以自架 PeerJS 伺服器，build 時設 VITE_PEER_SERVER（例如 https://peer.example.com/）。
+ */
+function peerOptions(): { debug: 1; host?: string; port?: number; path?: string; secure?: boolean } {
+  const raw = import.meta.env.VITE_PEER_SERVER as string | undefined
+  if (!raw) return { debug: 1 }
+  const url = new URL(raw)
+  const secure = url.protocol === 'https:'
+  const path = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`
+  return { debug: 1, host: url.hostname, port: Number(url.port) || (secure ? 443 : 80), path, secure }
+}
+
+const PEER_OPTIONS = peerOptions()
+
 class PeerLink implements Link {
   onMessage: ((message: unknown) => void) | null = null
   onClose: (() => void) | null = null
@@ -74,7 +89,7 @@ function startHost(roomId: string, events: HostEvents): Host {
     const { Peer } = await loadPeerJs()
     if (destroyed) return
     events.status(failures > 1 ? 'offline' : 'starting')
-    const current = new Peer(roomId, { debug: 1 })
+    const current = new Peer(roomId, PEER_OPTIONS)
     peer = current
 
     current.on('open', () => {
@@ -118,7 +133,7 @@ function startHost(roomId: string, events: HostEvents): Host {
 async function connect(roomId: string): Promise<Link> {
   const { Peer } = await loadPeerJs()
   // 每次連線都用一個新的 Peer，斷線就整個丟掉，重連時重新來過最單純
-  const peer = new Peer({ debug: 1 })
+  const peer = new Peer(PEER_OPTIONS)
 
   return new Promise<Link>((resolve, reject) => {
     let settled = false
@@ -145,3 +160,70 @@ async function connect(roomId: string): Promise<Link> {
 }
 
 export const peerTransport: Transport = { host: startHost, connect }
+
+/**
+ * 觀眾頁用：整個頁面共用一個 Peer（一條連到配對伺服器的連線），重連時只重新撥號。
+ * 台下幾十支手機常常共用同一個 Wi-Fi 對外 IP，如果每次重試都開新的 Peer，
+ * 一起重試時就會被配對伺服器擋下來。
+ */
+function reusingConnector(): (roomId: string) => Promise<Link> {
+  let peer: Peer | undefined
+
+  const discard = (current: Peer) => {
+    current.destroy()
+    if (peer === current) peer = undefined
+  }
+
+  const ready = async (): Promise<Peer> => {
+    const { Peer } = await loadPeerJs()
+    if (!peer || peer.destroyed) peer = new Peer(PEER_OPTIONS)
+    else if (peer.open) return peer
+    else if (peer.disconnected) peer.reconnect()
+    const current = peer
+    return new Promise<Peer>((resolve, reject) => {
+      const done = (ok: boolean) => {
+        clearTimeout(timeout)
+        current.off('open', onOpen)
+        current.off('error', onError)
+        if (ok) return resolve(current)
+        discard(current)
+        reject(new ConnectError('network'))
+      }
+      const onOpen = () => done(true)
+      const onError = (err: { type: string }) => {
+        if (FATAL_ERRORS.has(err.type)) done(false)
+      }
+      const timeout = setTimeout(() => done(false), CONNECT_TIMEOUT_MS)
+      current.on('open', onOpen)
+      current.on('error', onError)
+    })
+  }
+
+  return async (roomId) => {
+    const current = await ready()
+    return new Promise<Link>((resolve, reject) => {
+      let settled = false
+      const conn = current.connect(roomId, { reliable: true })
+      const finish = (error?: ConnectError) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        current.off('error', onError)
+        if (!error) return resolve(new PeerLink(conn))
+        conn.close()
+        // 找不到對方是正常的（講者還沒開放）；其他失敗就整個重來，避免卡在一條已經死掉的連線上
+        if (error.reason !== 'not-found') discard(current)
+        reject(error)
+      }
+      const onError = (err: { type: string; message: string }) => {
+        if (err.type === 'peer-unavailable') finish(new ConnectError('not-found'))
+        else if (FATAL_ERRORS.has(err.type)) finish(new ConnectError('network'))
+      }
+      const timeout = setTimeout(() => finish(new ConnectError('timeout')), CONNECT_TIMEOUT_MS)
+      current.on('error', onError)
+      conn.on('open', () => finish())
+    })
+  }
+}
+
+export const viewerTransport: Transport = { host: startHost, connect: reusingConnector() }
