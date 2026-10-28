@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>PPT-Web 簡報工作站</title>
+  </head>
+  <body>
+    <main id="start" class="start">
+      <div class="start-inner">
+        <p class="brand"><img src="./favicon.svg" alt="" width="24" height="24" />PPT-Web 簡報工作站</p>
+        <h1>把簡報拖進來，就能開始放映</h1>
+        <p class="lead">檔案只在這台電腦上開啟，不會上傳到任何地方。</p>
+
+        <label id="drop-zone" class="drop-zone">
+          <input id="file-input" type="file" accept=".pdf,.pptx" multiple />
+          <svg class="drop-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4l4 4"/><path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <span class="drop-title">拖放 PDF 到這裡</span>
+          <span class="drop-sub">可以同時放入 PPTX，或<span class="drop-link">選擇檔案</span></span>
+          <span class="drop-loading">正在開啟簡報…</span>
+        </label>
+        <p id="start-error" class="start-error" role="alert" hidden></p>
+
+        <section class="howto">
+          <h2>準備檔案</h2>
+          <ol>
+            <li>在 PowerPoint 選「檔案 → 匯出 → 建立 PDF/XPS 文件」，存一份 PDF。</li>
+            <li>把 PDF 和原本的 PPTX 一起拖進來。PPTX 用來讀備忘稿。</li>
+          </ol>
+        </section>
+      </div>
+    </main>
+
+    <div id="deck" class="deck" hidden>
+      <header class="topbar">
+        <h1 id="deck-title" class="deck-title"></h1>
+        <p id="page-indicator" class="page-indicator" aria-live="polite"></p>
+        <div class="topbar-actions">
+          <button id="btn-show-current" type="button" class="btn">從目前頁放映</button>
+          <button id="btn-show-start" type="button" class="btn btn-primary">從頭放映</button>
+          <button id="btn-close" type="button" class="btn btn-ghost">關閉簡報</button>
+        </div>
+      </header>
+
+      <aside id="sidebar" class="sidebar" aria-label="投影片縮圖"></aside>
+
+      <section id="stage" class="stage" aria-label="投影片">
+        <div id="show-toolbar" class="show-toolbar">
+          <button type="button" class="tool" data-action="prev" aria-label="上一頁"></button>
+          <span id="show-indicator" class="tool-indicator"></span>
+          <button type="button" class="tool" data-action="next" aria-label="下一頁"></button>
+          <button type="button" class="tool" data-action="blank" aria-label="黑幕"></button>
+          <button type="button" class="tool" data-action="exit" aria-label="結束放映"></button>
+        </div>
+        <p id="jump" class="jump" hidden></p>
+      </section>
+
+      <footer class="hints">
+        <span><kbd>←</kbd><kbd>→</kbd> 換頁</span>
+        <span><kbd>F5</kbd> 從頭放映</span>
+        <span><kbd>Shift</kbd>+<kbd>F5</kbd> 從目前頁</span>
+        <span><kbd>B</kbd> 黑幕</span>
+        <span><kbd>W</kbd> 白幕</span>
+        <span>數字 + <kbd>Enter</kbd> 跳頁</span>
+      </footer>
+    </div>
+
+    <script type="module" src="./src/display/main.ts"></script>
+  </body>
+</html>

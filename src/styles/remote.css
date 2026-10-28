@@ -1,0 +1,26 @@
+.remote-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.remote-placeholder h1 {
+  margin: 20px 0 8px;
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.remote-placeholder p {
+  max-width: 320px;
+  margin: 0 0 8px;
+  color: var(--text-2);
+}
+
+.remote-placeholder .muted {
+  color: var(--text-3);
+  font-size: 14px;
+}

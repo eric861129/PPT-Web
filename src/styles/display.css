@@ -1,0 +1,493 @@
+/* ---------- 開始頁 ---------- */
+
+.start {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+
+.start-inner {
+  width: min(620px, 100%);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 40px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.start h1 {
+  margin: 0 0 10px;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin: 0 0 32px;
+  color: var(--text-2);
+}
+
+.drop-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 240px;
+  padding: 24px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 16px;
+  background: var(--panel);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.drop-zone:hover,
+.drop-zone.is-dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+
+.drop-zone:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 3px;
+}
+
+.drop-zone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.drop-icon {
+  margin-bottom: 8px;
+  color: var(--text-3);
+  transition: color 0.15s, transform 0.15s;
+}
+
+.drop-zone.is-dragging .drop-icon {
+  color: var(--accent-strong);
+  transform: translateY(-3px);
+}
+
+.drop-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.drop-sub {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.drop-link {
+  margin-left: 2px;
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.drop-loading {
+  display: none;
+  color: var(--text-2);
+}
+
+.drop-zone.is-loading {
+  pointer-events: none;
+}
+
+.drop-zone.is-loading > :is(svg, .drop-title, .drop-sub) {
+  display: none;
+}
+
+.drop-zone.is-loading .drop-loading {
+  display: block;
+}
+
+.start-error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: #ffb4b4;
+  font-size: 14px;
+}
+
+.howto {
+  margin-top: 40px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.howto h2 {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.howto ol {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+/* ---------- 檢視模式 ---------- */
+
+.deck {
+  display: grid;
+  grid-template-columns: 228px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top top"
+    "side stage"
+    "side hints";
+  height: 100vh;
+}
+
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.deck-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.page-indicator {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.deck[data-blank="black"] .page-indicator::after {
+  content: "黑幕中";
+}
+
+.deck[data-blank="white"] .page-indicator::after {
+  content: "白幕中";
+}
+
+.deck:is([data-blank="black"], [data-blank="white"]) .page-indicator::after {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: #ffb4b4;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.btn:hover {
+  border-color: #4b4f59;
+  background: #25272d;
+}
+
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  border-color: #6a93ff;
+  background: #6a93ff;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+}
+
+.btn-ghost:hover {
+  border-color: transparent;
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.sidebar {
+  grid-area: side;
+  display: flex;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.thumbs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 14px 24px 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.thumb {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  text-align: right;
+  cursor: pointer;
+}
+
+.thumb:focus-visible {
+  outline: none;
+}
+
+.thumb-num {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb-frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #26282d;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.12s;
+}
+
+.thumb-frame canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.thumb:hover .thumb-frame {
+  outline-color: var(--border-strong);
+}
+
+.thumb:focus-visible .thumb-frame {
+  outline-color: var(--accent-strong);
+}
+
+.thumb[aria-current="true"] .thumb-num {
+  color: var(--text);
+}
+
+.thumb[aria-current="true"] .thumb-frame {
+  outline-color: var(--accent);
+}
+
+.stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.slide-view {
+  position: absolute;
+  inset: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background: #fff;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 45%);
+}
+
+.slide-blank {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.slide-blank[data-mode="black"] {
+  background: #000;
+  opacity: 1;
+}
+
+.slide-blank[data-mode="white"] {
+  background: #fff;
+  opacity: 1;
+}
+
+.hints {
+  grid-area: hints;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 28px 14px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.jump {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  z-index: 3;
+  margin: 0;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgb(20 21 24 / 88%);
+  color: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+
+.show-toolbar {
+  display: none;
+}
+
+/* ---------- 放映模式 ---------- */
+
+.deck.is-showing {
+  display: block;
+}
+
+.deck.is-showing :is(.topbar, .sidebar, .hints) {
+  display: none;
+}
+
+.deck.is-showing .stage {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  cursor: default;
+}
+
+.deck.is-showing .slide-view {
+  inset: 0;
+}
+
+.deck.is-showing .slide-canvas {
+  box-shadow: none;
+}
+
+.deck.is-showing.is-idle .stage,
+.deck.is-showing.is-idle .stage * {
+  cursor: none;
+}
+
+.deck.is-showing .show-toolbar {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 12px;
+  background: rgb(22 23 27 / 78%);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.25s;
+}
+
+.deck.is-showing.is-idle .show-toolbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #d4d5db;
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+}
+
+.tool-indicator {
+  min-width: 60px;
+  padding: 0 6px;
+  color: #c4c6cc;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.deck[data-blank="black"] .tool[data-action="blank"] {
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+
+@media (max-width: 760px) {
+  .deck {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "stage"
+      "hints";
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+}

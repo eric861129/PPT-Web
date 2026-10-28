@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# 由 scripts/copy-pdfjs-assets.mjs 從 node_modules 複製過來
+public/pdfjs/
+*.log
+.DS_Store
+Thumbs.db
