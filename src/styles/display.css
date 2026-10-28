@@ -123,6 +123,134 @@
   font-size: 14px;
 }
 
+.recent {
+  margin-top: 28px;
+}
+
+.recent h2 {
+  margin: 0 0 10px;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.recent-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-item {
+  position: relative;
+}
+
+.recent-open {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.recent-open:hover {
+  border-color: var(--border-strong);
+  background: var(--panel-2);
+}
+
+.recent-thumb {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background: #26282d;
+  aspect-ratio: 16 / 9;
+}
+
+.recent-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.recent-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.recent-meta {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.recent-remove {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(15 16 19 / 80%);
+  color: var(--text-2);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.recent-item:hover .recent-remove,
+.recent-remove:focus-visible {
+  opacity: 1;
+}
+
+.recent-remove:hover {
+  color: var(--text);
+}
+
+@media (hover: none) {
+  .recent-remove {
+    opacity: 1;
+  }
+}
+
+.recent-note {
+  margin: 10px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.link-btn {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--text);
+}
+
 .alt-mode {
   display: flex;
   align-items: center;
@@ -413,6 +541,14 @@
 
 .pair-status[data-status="offline"] .status-dot {
   background: var(--danger);
+}
+
+.pair-status[data-status="slow"] .status-dot {
+  background: #f2c46d;
+}
+
+.pair-status[data-status="slow"] {
+  color: #f2c46d;
 }
 
 .pair-url {
@@ -706,6 +842,142 @@
 
 .show-toolbar {
   display: none;
+}
+
+/* ---------- 講者檢視 ---------- */
+
+.presenter-bar,
+.next-preview {
+  display: none;
+}
+
+.deck.is-presenting {
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  grid-template-areas:
+    "top top"
+    "stage next"
+    "stage notes"
+    "hints hints";
+}
+
+.deck.is-presenting :is(.sidebar, .topbar-actions, .notes-resizer) {
+  display: none;
+}
+
+.deck.is-presenting .presenter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.presenter-elapsed {
+  min-width: 4.5ch;
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.presenter-elapsed[data-paused="true"] {
+  color: #f2c46d;
+}
+
+.presenter-now {
+  margin: 0 12px 0 8px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck.is-presenting .next-preview {
+  grid-area: next;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 14px 16px 12px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.next-label {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.next-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.next-frame .slide-view {
+  inset: 0;
+}
+
+.next-frame .slide-canvas {
+  box-shadow: none;
+}
+
+.next-last {
+  margin: auto 0;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.deck.is-presenting .notes {
+  border-left: 1px solid var(--border);
+}
+
+.deck.is-presenting .stage {
+  cursor: pointer;
+}
+
+/* 放映模式的工具列在講者檢視裡常駐在大圖左下角 */
+.deck.is-presenting .show-toolbar {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.deck.is-presenting[data-blank="black"] .tool[data-action="blank"] {
+  background: #e5484d;
+  color: #fff;
+}
+
+/* 講者看到的大圖不要真的變黑，蓋一層半透明並標示觀眾看到什麼 */
+.deck.is-presenting .stage .slide-blank:is([data-mode="black"], [data-mode="white"]) {
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 65%);
+}
+
+.deck.is-presenting .stage .slide-blank[data-mode="black"]::after {
+  content: "觀眾看到黑幕";
+}
+
+.deck.is-presenting .stage .slide-blank[data-mode="white"]::after {
+  content: "觀眾看到白幕";
+}
+
+.deck.is-presenting .stage .slide-blank::after {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 /* ---------- PowerPoint 模式 ---------- */

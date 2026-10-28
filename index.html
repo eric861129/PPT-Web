@@ -23,6 +23,12 @@
         </label>
         <p id="start-error" class="start-error" role="alert" hidden></p>
 
+        <section id="recent" class="recent" aria-labelledby="recent-title" hidden>
+          <h2 id="recent-title">最近開過的簡報</h2>
+          <ul id="recent-list" class="recent-list"></ul>
+          <p class="recent-note">只存在這個瀏覽器裡，不會上傳。<button id="recent-clear" type="button" class="link-btn">全部清除</button></p>
+        </section>
+
         <section class="alt-mode">
           <div>
             <h2>需要完整的動畫效果？</h2>
@@ -51,9 +57,21 @@
             手機遙控
             <span class="badge remote-count" hidden></span>
           </button>
+          <button id="btn-presenter" type="button" class="btn" title="觀眾畫面放投影機，筆電看備忘稿和計時（Alt+F5）">講者檢視</button>
           <button id="btn-show-current" type="button" class="btn">從目前頁放映</button>
           <button id="btn-show-start" type="button" class="btn btn-primary">從頭放映</button>
           <button id="btn-close" type="button" class="btn btn-ghost">關閉簡報</button>
+        </div>
+        <div class="presenter-bar">
+          <span id="presenter-elapsed" class="presenter-elapsed" aria-label="已經過的時間">0:00</span>
+          <button id="presenter-timer-toggle" type="button" class="btn btn-ghost">暫停</button>
+          <button id="presenter-timer-reset" type="button" class="btn btn-ghost">重設</button>
+          <span id="presenter-now" class="presenter-now" aria-label="現在時間"></span>
+          <button id="presenter-remote" type="button" class="btn btn-ghost btn-remote" title="手機遙控（Q）" aria-label="手機遙控">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+            <span class="badge remote-count" hidden></span>
+          </button>
+          <button id="btn-end-presenter" type="button" class="btn">結束講者檢視</button>
         </div>
       </header>
 
@@ -68,6 +86,13 @@
           <button type="button" class="tool" data-action="exit" aria-label="結束放映"></button>
         </div>
         <p id="jump" class="jump" hidden></p>
+      </section>
+
+      <!-- 講者檢視才顯示；位置由 grid-area 決定，放在大圖後面讓閱讀順序是「目前頁 → 下一頁」 -->
+      <section class="next-preview" aria-label="下一頁">
+        <p class="next-label">下一頁</p>
+        <div id="next-frame" class="next-frame"></div>
+        <p id="next-last" class="next-last" hidden>這是最後一頁</p>
       </section>
 
       <section id="notes" class="notes" aria-label="備忘稿">

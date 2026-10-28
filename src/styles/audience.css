@@ -1,0 +1,92 @@
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.audience {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.audience.is-idle,
+.audience.is-idle * {
+  cursor: none;
+}
+
+/* 跟電腦端共用 SlideView，這裡讓它填滿整個視窗 */
+.slide-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.slide-blank {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.slide-blank[data-mode="black"] {
+  background: #000;
+  opacity: 1;
+}
+
+.slide-blank[data-mode="white"] {
+  background: #fff;
+  opacity: 1;
+}
+
+.audience-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  z-index: 2;
+  width: min(560px, calc(100% - 32px));
+  padding: 16px 20px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 14px;
+  background: rgb(22 23 27 / 92%);
+  color: var(--text-2);
+  font-size: 15px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.audience-hint p {
+  margin: 0;
+}
+
+.audience-hint-title {
+  margin-bottom: 6px !important;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.audience-hint-sub {
+  margin-top: 6px !important;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.audience-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 18px;
+  transform: translate(-50%, -50%);
+}

@@ -15,15 +15,24 @@ const roomId = roomIdFromHash(location.hash)
 listen(window, 'hashchange', () => location.reload())
 
 if (!roomId) {
-  new RemoteView(() => {}).showNoRoom()
+  new RemoteView({ retry: () => {}, jump: () => {}, timer: () => {} }).showNoRoom()
 } else {
   let client: RemoteClient
-  const view = new RemoteView(() => client.retry())
+  const send = (command: RemoteCommand) => {
+    void keepAwake()
+    if (client.send(command)) navigator.vibrate?.(10)
+  }
+  const view = new RemoteView({
+    retry: () => client.retry(),
+    jump: (index) => send({ type: 'goto', index }),
+    timer: (action) => send({ type: 'timer', action }),
+  })
   client = new RemoteClient(peerTransport, roomId, clientId(), {
     status: (info) => {
       view.setConnection(info)
       if (info.status === 'connected') void keepAwake()
     },
+    latency: (ms) => view.setLatency(ms),
     message: (msg) => {
       switch (msg.type) {
         case 'deck':
@@ -36,11 +45,6 @@ if (!roomId) {
     },
   })
   client.start()
-
-  const send = (command: RemoteCommand) => {
-    void keepAwake()
-    if (client.send(command)) navigator.vibrate?.(10)
-  }
 
   listen(byId('r-prev'), 'click', () => send({ type: 'prev' }))
   listen(byId('r-next-btn'), 'click', () => send({ type: 'next' }))

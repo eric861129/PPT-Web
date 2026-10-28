@@ -123,13 +123,35 @@ describe('RemoteClient', () => {
     const link = transport.connected[0]!
     link.receive({ type: 'welcome' })
 
-    await vi.advanceTimersByTimeAsync(4000)
+    // 連上時先 ping 一次量延遲，之後每 4 秒一次
     expect(link.sentOfType('ping')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(link.sentOfType('ping')).toHaveLength(2)
 
     now = 13000
     await vi.advanceTimersByTimeAsync(4000)
     expect(link.closed).toBe(true)
     expect(last()?.status).toBe('reconnecting')
+  })
+
+  it('measures the round trip and reports it with the next ping', async () => {
+    const transport = new FakeTransport()
+    const latencies: number[] = []
+    const client = new RemoteClient(transport, 'pptweb-room', 'phone-a', {
+      status: () => {},
+      message: () => {},
+      latency: (ms) => latencies.push(ms),
+    }, () => now)
+    client.start()
+    await settle()
+    const link = transport.connected[0]!
+    now = 100
+    link.receive({ type: 'welcome' })
+    now = 145
+    link.receive({ type: 'pong' })
+    expect(latencies).toEqual([45])
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(link.sentOfType('ping').at(-1)).toEqual({ type: 'ping', rtt: 45 })
   })
 
   it('reconnects right away when the page comes back to the foreground', async () => {

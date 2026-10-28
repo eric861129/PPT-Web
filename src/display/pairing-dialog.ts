@@ -1,9 +1,9 @@
 // 「手機遙控」視窗：顯示 QR Code 與連線狀態。視窗開著時才接受新手機配對。
 import qrcode from 'qrcode-generator'
+import { latencyLevel } from '../core/time'
 import { byId, listen } from '../shared/dom'
 import type { HostView, RemoteHost } from './remote-host'
-
-const TOAST_MS = 2500
+import { showToast } from './toast'
 
 export class PairingDialog {
   private readonly dialog = byId<HTMLDialogElement>('pair-dialog')
@@ -14,10 +14,8 @@ export class PairingDialog {
   private readonly forget = byId<HTMLButtonElement>('pair-forget')
   /** 每個畫面的「手機遙控」按鈕上都有一個數字 */
   private readonly badges = document.querySelectorAll<HTMLElement>('.remote-count')
-  private readonly toast = byId('toast')
   private qrUrl = ''
   private clients = 0
-  private toastTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly host: RemoteHost) {
     host.subscribe((view) => this.update(view))
@@ -61,10 +59,12 @@ export class PairingDialog {
       this.urlInput.value = view.url
     }
 
-    const { status, clients } = view
+    const { status, clients, latencies } = view
+    // 每支手機回報的延遲就是開場前的連線測試：200ms 以內很順，超過 500ms 會明顯卡
+    const latencyText = latencies.length ? ` · 延遲 ${latencies.map((ms) => `${ms}ms`).join('、')}` : ''
     this.statusLine.dataset.status = clients ? 'connected' : status
     this.statusText.textContent =
-      clients ? `已連線 ${clients} 支手機${status === 'offline' ? '（暫時無法配對新手機）' : ''}`
+      clients ? `已連線 ${clients} 支手機${latencyText}${status === 'offline' ? '（暫時無法配對新手機）' : ''}`
       : status === 'ready' ? '等待手機連線'
       : status === 'offline' ? '連不上配對伺服器，正在重試。請確認電腦有網路。'
       : '正在連線配對伺服器…'
@@ -75,17 +75,13 @@ export class PairingDialog {
     }
     this.forget.hidden = !clients
 
+    const worst = Math.max(0, ...latencies)
+    if (clients) this.statusLine.dataset.status = latencyLevel(worst) === 'poor' ? 'slow' : 'connected'
+
     if (clients !== this.clients) {
-      this.showToast(clients > this.clients ? '手機已連線' : '手機已中斷連線')
+      showToast(clients > this.clients ? '手機已連線' : '手機已中斷連線')
       this.clients = clients
     }
-  }
-
-  private showToast(text: string): void {
-    this.toast.textContent = text
-    this.toast.hidden = false
-    clearTimeout(this.toastTimer)
-    this.toastTimer = setTimeout(() => (this.toast.hidden = true), TOAST_MS)
   }
 
   private async copyUrl(): Promise<void> {

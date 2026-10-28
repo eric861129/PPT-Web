@@ -8,7 +8,7 @@ function setup() {
     (a) => actions.push(a),
     (d) => digits.push(d),
   )
-  const press = (key: string, mods: { shiftKey?: boolean; ctrlKey?: boolean } = {}) =>
+  const press = (key: string, mods: { shiftKey?: boolean; ctrlKey?: boolean; altKey?: boolean } = {}) =>
     input.handle({ key, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods })
   return { actions, digits, press }
 }
@@ -92,6 +92,12 @@ describe('KeyboardInput', () => {
       { kind: 'startShow', fromCurrent: true },
       { kind: 'endShow' },
     ])
+  })
+
+  it('starts the presenter view with Alt+F5, like PowerPoint', () => {
+    const { actions, press } = setup()
+    expect(press('F5', { altKey: true })).toBe(true)
+    expect(actions).toEqual([{ kind: 'startPresenter' }])
   })
 
   it('opens the phone pairing window with Q', () => {

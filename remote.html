@@ -11,9 +11,12 @@
   <body>
     <main id="remote" class="remote" data-conn="connecting" data-blank="off">
       <header class="r-top">
-        <p class="r-conn"><span class="r-dot" aria-hidden="true"></span><span id="r-conn-text">連線中…</span></p>
-        <p id="r-page" class="r-page" aria-live="polite"></p>
-        <p id="r-time" class="r-time" aria-label="計時"></p>
+        <p class="r-conn">
+          <span class="r-dot" aria-hidden="true"></span><span id="r-conn-text">連線中…</span>
+          <span id="r-latency" class="r-latency" title="跟電腦之間的延遲" hidden></span>
+        </p>
+        <button id="r-page" type="button" class="r-page" aria-live="polite" aria-label="頁碼，點一下開啟跳頁清單"></button>
+        <button id="r-time" type="button" class="r-time"></button>
       </header>
 
       <section class="r-slides" aria-label="投影片">
@@ -50,6 +53,34 @@
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </nav>
+
+      <div id="r-backdrop" class="r-backdrop" hidden></div>
+
+      <section id="r-jump" class="r-sheet r-sheet-tall" aria-label="跳到其他頁" hidden>
+        <header class="r-sheet-head">
+          <h2>跳到…</h2>
+          <button type="button" class="r-sheet-close" data-close-sheet aria-label="關閉">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </header>
+        <ol id="r-jump-list" class="r-jump-list"></ol>
+      </section>
+
+      <section id="r-timer" class="r-sheet" aria-label="計時器" hidden>
+        <header class="r-sheet-head">
+          <h2>計時器</h2>
+          <button type="button" class="r-sheet-close" data-close-sheet aria-label="關閉">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </header>
+        <p id="r-timer-big" class="r-timer-big">0:00</p>
+        <p id="r-timer-clock" class="r-timer-clock"></p>
+        <div class="r-timer-actions">
+          <button id="r-timer-reset" type="button" class="r-btn">重設</button>
+          <button id="r-timer-toggle" type="button" class="r-btn r-btn-next">暫停</button>
+        </div>
+        <p class="r-sheet-note">開始放映時會自動開始計時。所有手機和電腦看到的是同一個計時器。</p>
+      </section>
 
       <div id="r-overlay" class="r-overlay">
         <div class="r-overlay-card">

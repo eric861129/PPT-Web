@@ -35,6 +35,20 @@ describe('parseRemoteMessage', () => {
     expect(parseRemoteMessage({ type: 'command', command: { type: 'next' } })).toBeNull()
     expect(parseRemoteMessage('hello')).toBeNull()
   })
+
+  it('accepts timer commands and rejects unknown actions', () => {
+    expect(parseRemoteMessage({ type: 'command', id: 'a', command: { type: 'timer', action: 'reset' } })).toMatchObject({
+      command: { type: 'timer', action: 'reset' },
+    })
+    expect(parseRemoteMessage({ type: 'command', id: 'a', command: { type: 'timer', action: 'explode' } })).toBeNull()
+  })
+
+  it('keeps a sane latency from pings and drops the rest', () => {
+    expect(parseRemoteMessage({ type: 'ping', rtt: 37.6 })).toEqual({ type: 'ping', rtt: 38 })
+    expect(parseRemoteMessage({ type: 'ping', rtt: -5 })).toEqual({ type: 'ping' })
+    expect(parseRemoteMessage({ type: 'ping', rtt: 1e9 })).toEqual({ type: 'ping' })
+    expect(parseRemoteMessage({ type: 'ping' })).toEqual({ type: 'ping' })
+  })
 })
 
 describe('parseDisplayMessage', () => {

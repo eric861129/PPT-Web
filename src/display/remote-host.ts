@@ -11,6 +11,7 @@ import {
   type RemoteCommand,
   type RemoteState,
 } from '../core/protocol'
+import type { Stopwatch } from '../core/stopwatch'
 import type { Host, HostStatus, Link, Transport } from '../net/transport'
 
 export interface HostDeck {
@@ -18,9 +19,9 @@ export interface HostDeck {
   thumb(index: number): Promise<ArrayBuffer>
 }
 
-/** 播放狀態；startedAt 用 now() 的時鐘，還沒放映過是 null */
-export interface ShowSnapshot extends Omit<RemoteState, 'elapsedMs'> {
-  startedAt: number | null
+/** 播放狀態；計時器的時間在送出當下才讀，所以每支手機拿到的都是最新的 */
+export interface ShowSnapshot extends Omit<RemoteState, 'elapsedMs' | 'timerRunning'> {
+  timer: Pick<Stopwatch, 'elapsed' | 'running' | 'started'> | null
 }
 
 export interface HostView {
@@ -28,6 +29,8 @@ export interface HostView {
   clients: number
   pairing: boolean
   url: string
+  /** 每支已連線手機回報的來回延遲（毫秒）；還沒量到的不列 */
+  latencies: number[]
 }
 
 type KeyValueStore = Pick<Storage, 'getItem' | 'setItem'>
@@ -46,6 +49,7 @@ interface Client {
   sent: Set<number>
   pumping: boolean
   lastSeen: number
+  rtt?: number
 }
 
 const ROOM_KEY = 'ppt-web:room'
@@ -95,8 +99,13 @@ export class RemoteHost {
 
   get view(): HostView {
     let clients = 0
-    for (const c of this.clients) if (c.id) clients++
-    return { status: this.status, clients, pairing: this.pairing.open, url: remoteUrl(this.options.pageUrl, this.room) }
+    const latencies: number[] = []
+    for (const c of this.clients) {
+      if (!c.id) continue
+      clients++
+      if (c.rtt !== undefined) latencies.push(c.rtt)
+    }
+    return { status: this.status, clients, pairing: this.pairing.open, url: remoteUrl(this.options.pageUrl, this.room), latencies }
   }
 
   /** 開始接受連線；重複呼叫沒有作用 */
@@ -194,7 +203,12 @@ export class RemoteHost {
         return
       }
       case 'ping':
-        return this.send(client, { type: 'pong' })
+        this.send(client, { type: 'pong' })
+        if (msg.rtt !== undefined && client.id && msg.rtt !== client.rtt) {
+          client.rtt = msg.rtt
+          this.emit()
+        }
+        return
       case 'command':
         if (client.id && this.recent.add(msg.id)) this.onCommand(msg.command)
         return
@@ -215,8 +229,10 @@ export class RemoteHost {
   }
 
   private remoteState(show: ShowSnapshot): RemoteState {
-    const { startedAt, ...rest } = show
-    return { ...rest, elapsedMs: startedAt === null ? null : Math.max(0, this.now() - startedAt) }
+    const { timer, ...rest } = show
+    const state: RemoteState = { ...rest, elapsedMs: timer?.started ? Math.max(0, Math.round(timer.elapsed())) : null }
+    if (timer?.started && !timer.running) state.timerRunning = false
+    return state
   }
 
   /** 一張一張送縮圖給這支手機，每次都挑離目前頁最近、還沒送過的 */

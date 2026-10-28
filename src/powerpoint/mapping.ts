@@ -1,6 +1,7 @@
 // PowerPoint 的投影片編號 ↔ 手機上的頁碼。
 // 手機只看得到會放映的投影片：隱藏投影片不算頁，跟 PDF 模式一致。
 import type { DeckSummary, RemoteCommand } from '../core/protocol'
+import type { Stopwatch } from '../core/stopwatch'
 import type { ShowSnapshot } from '../display/remote-host'
 import { VIEW_BLACK, VIEW_DONE, VIEW_WHITE, type BridgeCommand, type BridgeDeck, type BridgeSlide, type BridgeState } from './protocol'
 
@@ -27,12 +28,12 @@ export function pageIndexOf(deck: BridgeDeck, slide: number | null): number | nu
   return visible.length ? index : null
 }
 
-export function toShow(state: BridgeState, index: number, startedAt: number | null): ShowSnapshot {
+export function toShow(state: BridgeState, index: number, timer: Stopwatch | null): ShowSnapshot {
   const show: ShowSnapshot = {
     index,
     blank: state.view === VIEW_BLACK ? 'black' : state.view === VIEW_WHITE ? 'white' : 'off',
     showing: state.running,
-    startedAt,
+    timer,
   }
   if (state.running && state.clickCount > 0) show.clicks = { index: state.clickIndex, count: state.clickCount }
   if (state.running && state.view === VIEW_DONE) show.ended = true
@@ -57,5 +58,8 @@ export function toBridgeCommand(cmd: RemoteCommand, deck: BridgeDeck, state: Bri
       return { type: 'toggleBlank', mode: cmd.mode }
     case 'startShow':
       return state.running ? null : { type: 'start', slide: state.slide ?? 1 }
+    case 'timer':
+      // 計時器在網站這邊，不用告訴 PowerPoint
+      return null
   }
 }

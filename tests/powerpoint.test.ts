@@ -84,20 +84,20 @@ describe('mapping PowerPoint slides to phone pages', () => {
   })
 
   it('reports blank screens, animation steps, and the end-of-show screen', () => {
-    expect(toShow(state({ view: 3, clickIndex: 1, clickCount: 3 }), 1, 100)).toEqual({
+    expect(toShow(state({ view: 3, clickIndex: 1, clickCount: 3 }), 1, null)).toEqual({
       index: 1,
       blank: 'black',
       showing: true,
-      startedAt: 100,
+      timer: null,
       clicks: { index: 1, count: 3 },
     })
     expect(toShow(state({ view: 4 }), 0, null).blank).toBe('white')
-    expect(toShow(state({ view: 5, slide: null }), 2, 100).ended).toBe(true)
+    expect(toShow(state({ view: 5, slide: null }), 2, null).ended).toBe(true)
     expect(toShow(state({ running: false, view: null, clickCount: 2 }), 0, null)).toEqual({
       index: 0,
       blank: 'off',
       showing: false,
-      startedAt: null,
+      timer: null,
     })
   })
 
@@ -108,6 +108,7 @@ describe('mapping PowerPoint slides to phone pages', () => {
     expect(toBridgeCommand({ type: 'blank', mode: 'black' }, deck, state())).toEqual({ type: 'blank', mode: 'black' })
     expect(toBridgeCommand({ type: 'startShow' }, deck, state({ running: false, slide: 2 }))).toEqual({ type: 'start', slide: 2 })
     expect(toBridgeCommand({ type: 'startShow' }, deck, state({ running: true }))).toBeNull()
+    expect(toBridgeCommand({ type: 'timer', action: 'toggle' }, deck, state())).toBeNull()
   })
 
   it('lets phones send the start command', () => {

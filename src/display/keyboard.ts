@@ -8,6 +8,7 @@ export type KeyAction =
   | { kind: 'endShow' }
   | { kind: 'toggleFullscreen' }
   | { kind: 'togglePairing' }
+  | { kind: 'startPresenter' }
 
 export type KeyLike = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey'>
 
@@ -28,6 +29,11 @@ export class KeyboardInput {
 
   /** 回傳 true 代表這個按鍵已處理，呼叫端應該 preventDefault。 */
   handle(e: KeyLike): boolean {
+    // Alt+F5 是 PowerPoint 的「簡報者檢視」
+    if (e.key === 'F5' && e.altKey && !e.ctrlKey && !e.metaKey) {
+      this.onAction({ kind: 'startPresenter' })
+      return true
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return false
     const { key } = e
 

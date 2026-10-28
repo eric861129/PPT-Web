@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>觀眾畫面 · PPT-Web</title>
+  </head>
+  <body>
+    <main id="audience" class="audience">
+      <div id="audience-hint" class="audience-hint">
+        <p class="audience-hint-title">把這個視窗放到投影機的螢幕上</p>
+        <p>然後在這個視窗按任意鍵（或點一下），就會進入全螢幕。</p>
+        <p class="audience-hint-sub">簡報筆、方向鍵在這個視窗也能用。</p>
+      </div>
+      <p id="audience-message" class="audience-message" hidden></p>
+    </main>
+    <script type="module" src="./src/audience/main.ts"></script>
+  </body>
+</html>

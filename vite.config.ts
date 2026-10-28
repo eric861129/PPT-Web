@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         display: resolve(import.meta.dirname, 'index.html'),
         remote: resolve(import.meta.dirname, 'remote.html'),
+        audience: resolve(import.meta.dirname, 'audience.html'),
       },
     },
   },

@@ -142,7 +142,8 @@ export class SlideRenderer {
       try {
         job.resolve(await job.run())
       } catch (err) {
-        job.reject(err)
+        // 簡報關掉時 pdf.js 會取消畫到一半的頁面，那不是錯誤
+        job.reject(this.destroyed ? new StaleRenderError() : err)
       }
     }
     this.busy = false
@@ -163,5 +164,5 @@ export class SlideRenderer {
 }
 
 export function isStaleRender(err: unknown): boolean {
-  return err instanceof StaleRenderError
+  return err instanceof StaleRenderError || (err instanceof Error && err.name === 'RenderingCancelledException')
 }

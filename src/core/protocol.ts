@@ -5,13 +5,17 @@ import type { BlankMode, Command } from './navigation'
 
 export const PROTOCOL_VERSION = 1
 
-/** 手機能送的指令：翻頁、黑幕，加上 PowerPoint 模式才有的「開始放映」 */
-export type RemoteCommand = Command | { type: 'startShow' }
+/** 手機能送的指令：翻頁、黑幕、計時器，加上 PowerPoint 模式才有的「開始放映」 */
+export type RemoteCommand =
+  | Command
+  | { type: 'startShow' }
+  | { type: 'timer'; action: 'toggle' | 'reset' }
 
 export type RemoteMessage =
   | { type: 'hello'; v: number; client: string }
   | { type: 'command'; id: string; command: RemoteCommand }
-  | { type: 'ping' }
+  /** rtt：手機量到的上一次來回時間（毫秒），電腦端用來顯示連線品質 */
+  | { type: 'ping'; rtt?: number }
 
 /** pdf：網站自己放映 PDF；powerpoint：由電腦上的 PowerPoint 放映 */
 export type DeckMode = 'pdf' | 'powerpoint'
@@ -32,8 +36,10 @@ export interface RemoteState {
   index: number
   blank: BlankMode
   showing: boolean
-  /** 從開始放映到送出這則訊息經過的毫秒數；還沒放映過是 null */
+  /** 計時器在送出這則訊息時的毫秒數；還沒開始過是 null */
   elapsedMs: number | null
+  /** 計時器暫停中是 false；沒有寫就當作在跑 */
+  timerRunning?: boolean
   /** PowerPoint 模式：這張投影片的動畫已經按了幾下、共幾下 */
   clicks?: { index: number; count: number }
   /** PowerPoint 模式：停在「放映結束」的黑畫面 */
@@ -73,6 +79,9 @@ export function parseCommand(x: unknown): Command | null {
 
 export function parseRemoteCommand(x: unknown): RemoteCommand | null {
   if (isObj(x) && x.type === 'startShow') return { type: 'startShow' }
+  if (isObj(x) && x.type === 'timer') {
+    return x.action === 'toggle' || x.action === 'reset' ? { type: 'timer', action: x.action } : null
+  }
   return parseCommand(x)
 }
 
@@ -86,7 +95,9 @@ export function parseRemoteMessage(x: unknown): RemoteMessage | null {
       return command && isShortString(x.id) ? { type: 'command', id: x.id, command } : null
     }
     case 'ping':
-      return { type: 'ping' }
+      return typeof x.rtt === 'number' && Number.isFinite(x.rtt) && x.rtt >= 0 && x.rtt < 60000
+        ? { type: 'ping', rtt: Math.round(x.rtt) }
+        : { type: 'ping' }
   }
   return null
 }

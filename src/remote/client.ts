@@ -26,6 +26,8 @@ export interface ClientStatusInfo {
 export interface ClientEvents {
   status(info: ClientStatusInfo): void
   message(message: DisplayMessage): void
+  /** 每次收到 pong 時量到的來回時間（毫秒） */
+  latency?(ms: number): void
 }
 
 const PING_MS = 4000
@@ -41,6 +43,8 @@ export class RemoteClient {
   private stopped = false
   private seq = 0
   private lastHeard = 0
+  private pingSentAt: number | null = null
+  private rtt: number | undefined
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private pingTimer: ReturnType<typeof setInterval> | undefined
   private info: ClientStatusInfo = { status: 'connecting' }
@@ -118,6 +122,8 @@ export class RemoteClient {
         this.attempts = 0
         this.everConnected = true
         this.setStatus({ status: 'connected' })
+        // 連上就先量一次延遲，不用等第一個心跳
+        this.ping()
         return
       case 'rejected':
         this.stopped = true
@@ -125,6 +131,11 @@ export class RemoteClient {
         this.setStatus({ status: 'rejected', reason: msg.reason })
         return
       case 'pong':
+        if (this.pingSentAt !== null) {
+          this.rtt = this.now() - this.pingSentAt
+          this.pingSentAt = null
+          this.events.latency?.(this.rtt)
+        }
         return
       default:
         this.events.message(msg)
@@ -167,8 +178,14 @@ export class RemoteClient {
     clearInterval(this.pingTimer)
     this.pingTimer = setInterval(() => {
       if (this.now() - this.lastHeard > SILENCE_MS) return this.drop()
-      this.post({ type: 'ping' })
+      this.ping()
     }, PING_MS)
+  }
+
+  /** 心跳兼量延遲：把上一次量到的延遲一起告訴電腦 */
+  private ping(): void {
+    this.pingSentAt = this.now()
+    this.post(this.rtt === undefined ? { type: 'ping' } : { type: 'ping', rtt: Math.round(this.rtt) })
   }
 
   private post(message: RemoteMessage): void {

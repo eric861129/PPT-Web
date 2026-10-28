@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeckSummary, RemoteCommand } from '../src/core/protocol'
+import { Stopwatch } from '../src/core/stopwatch'
 import {
   REJECT_FORGOTTEN,
   REJECT_NOT_PAIRING,
@@ -153,12 +154,15 @@ describe('RemoteHost commands and state', () => {
     expect(phone.sentOfType('pong')).toHaveLength(1)
   })
 
-  it('sends the deck and state, with elapsed time measured on the host clock', async () => {
-    let now = 1000
-    const { transport, host } = setup(memoryStorage(), () => now)
+  it('sends the deck and state, reading the timer at send time', async () => {
+    let now = 400
+    const timer = new Stopwatch(() => now)
+    timer.start()
+    now = 1000
+    const { transport, host } = setup()
     host.setPairing(true)
     host.setDeck(deck(3))
-    host.setShow({ index: 1, blank: 'off', showing: true, startedAt: 400 })
+    host.setShow({ index: 1, blank: 'off', showing: true, timer })
     const phone = transport.phone()
     hello(phone)
     expect(phone.sentOfType('deck')[0]).toEqual({ type: 'deck', deck: summary(3) })
@@ -168,12 +172,43 @@ describe('RemoteHost commands and state', () => {
     })
 
     now = 5000
-    host.setShow({ index: 2, blank: 'black', showing: true, startedAt: 400 })
+    host.setShow({ index: 2, blank: 'black', showing: true, timer })
     expect(phone.sentOfType('state').at(-1)).toEqual({
       type: 'state',
       state: { index: 2, blank: 'black', showing: true, elapsedMs: 4600 },
     })
+
+    // 暫停時告訴手機不要自己往下算
+    timer.pause()
+    now = 9000
+    host.setShow({ index: 2, blank: 'off', showing: true, timer })
+    expect(phone.sentOfType('state').at(-1)).toEqual({
+      type: 'state',
+      state: { index: 2, blank: 'off', showing: true, elapsedMs: 4600, timerRunning: false },
+    })
     await flush()
+  })
+
+  it('reports no time before the timer has ever started', () => {
+    const { transport, host } = setup()
+    host.setPairing(true)
+    host.setDeck(deck(1))
+    host.setShow({ index: 0, blank: 'off', showing: false, timer: new Stopwatch() })
+    const phone = transport.phone()
+    hello(phone)
+    expect(phone.sentOfType<{ type: 'state'; state: { elapsedMs: unknown } }>('state')[0]?.state.elapsedMs).toBeNull()
+  })
+
+  it('keeps the latency each phone reports, for the pairing window', () => {
+    const { transport, host } = setup()
+    host.setPairing(true)
+    const phone = transport.phone()
+    hello(phone)
+    expect(host.view.latencies).toEqual([])
+    phone.receive({ type: 'ping', rtt: 42.4 })
+    expect(host.view.latencies).toEqual([42])
+    phone.receive({ type: 'ping', rtt: 'fast' })
+    expect(host.view.latencies).toEqual([42])
   })
 
   it('tells phones when the deck is closed', () => {
@@ -190,7 +225,7 @@ describe('RemoteHost commands and state', () => {
     const { transport, host } = setup()
     host.setPairing(true)
     host.setDeck(deck(5))
-    host.setShow({ index: 2, blank: 'off', showing: false, startedAt: null })
+    host.setShow({ index: 2, blank: 'off', showing: false, timer: null })
     const phone = transport.phone()
     hello(phone)
     await flush()
@@ -222,12 +257,12 @@ describe('RemoteHost commands and state', () => {
     })
     host.setPairing(true)
     host.setDeck({ summary: summary(2), thumb })
-    host.setShow({ index: 0, blank: 'off', showing: true, startedAt: 0 })
+    host.setShow({ index: 0, blank: 'off', showing: true, timer: null })
     const phone = transport.phone()
     hello(phone)
     for (let i = 0; i < 5; i++) {
       await flush()
-      host.setShow({ index: 0, blank: 'off', showing: true, startedAt: 0 })
+      host.setShow({ index: 0, blank: 'off', showing: true, timer: null })
     }
     await flush()
     expect(calls).toBe(3)

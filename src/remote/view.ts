@@ -1,15 +1,23 @@
-// 手機遙控的畫面：頁碼、計時、目前頁與下一頁縮圖、備忘稿、遮罩訊息。
+// 手機遙控的畫面：頁碼、計時、目前頁與下一頁縮圖、備忘稿、跳頁清單、計時器、遮罩訊息。
 // 只負責顯示，資料都由 main.ts 從連線收到後交進來。
 import type { DeckSummary, RemoteState } from '../core/protocol'
+import { formatClock, formatDuration, latencyLevel } from '../core/time'
 import { byId, listen, loadPref, messageParagraph, renderNoteParagraphs, savePref } from '../shared/dom'
 import type { ClientStatusInfo } from './client'
 
 const SIZES = [16, 18, 20, 22, 24, 28, 32, 36]
 const DEFAULT_SIZE = 22
 
+export interface RemoteViewActions {
+  retry(): void
+  jump(index: number): void
+  timer(action: 'toggle' | 'reset'): void
+}
+
 export class RemoteView {
   private readonly root = byId('remote')
   private readonly connText = byId('r-conn-text')
+  private readonly latency = byId('r-latency')
   private readonly page = byId('r-page')
   private readonly time = byId('r-time')
   private readonly current = byId('r-current')
@@ -23,17 +31,24 @@ export class RemoteView {
   private readonly overlayTitle = byId('r-overlay-title')
   private readonly overlayText = byId('r-overlay-text')
   private readonly retryButton = byId('r-retry')
+  private readonly backdrop = byId('r-backdrop')
+  private readonly jumpSheet = byId('r-jump')
+  private readonly jumpList = byId('r-jump-list')
+  private readonly timerSheet = byId('r-timer')
+  private readonly timerBig = byId('r-timer-big')
+  private readonly timerClock = byId('r-timer-clock')
+  private readonly timerToggle = byId('r-timer-toggle')
 
   private connection: ClientStatusInfo | null = null
   private deck: DeckSummary | null = null
   private state: RemoteState | null = null
   private thumbs = new Map<number, string>()
   private shownIndex = -1
-  /** 計時器的基準：收到 elapsedMs 當下的本機時間 */
-  private elapsed: { ms: number; at: number } | null = null
+  /** 計時器的基準：收到 elapsedMs 當下的本機時間；暫停中不往下算 */
+  private elapsed: { ms: number; at: number; running: boolean } | null = null
   private sizeIndex: number
 
-  constructor(onRetry: () => void) {
+  constructor(actions: RemoteViewActions) {
     const saved = SIZES.indexOf(Number(loadPref('remote-notes-size')))
     this.sizeIndex = saved >= 0 ? saved : SIZES.indexOf(DEFAULT_SIZE)
     this.applySize()
@@ -44,7 +59,21 @@ export class RemoteView {
         savePref('remote-notes-size', String(SIZES[this.sizeIndex]))
       })
     }
-    listen(this.retryButton, 'click', onRetry)
+    listen(this.retryButton, 'click', () => actions.retry())
+
+    listen(this.page, 'click', () => this.openJump())
+    listen(this.time, 'click', () => this.openSheet(this.timerSheet))
+    listen(this.backdrop, 'click', () => this.closeSheets())
+    for (const button of document.querySelectorAll('[data-close-sheet]')) listen(button, 'click', () => this.closeSheets())
+    listen<MouseEvent>(this.jumpList, 'click', (e) => {
+      const item = (e.target as HTMLElement).closest<HTMLElement>('[data-index]')
+      if (!item) return
+      actions.jump(Number(item.dataset.index))
+      this.closeSheets()
+    })
+    listen(this.timerToggle, 'click', () => actions.timer('toggle'))
+    listen(byId('r-timer-reset'), 'click', () => actions.timer('reset'))
+
     setInterval(() => this.renderTime(), 1000)
     this.renderTime()
   }
@@ -67,8 +96,17 @@ export class RemoteView {
   setConnection(info: ClientStatusInfo): void {
     this.connection = info
     this.root.dataset.conn = info.status
+    if (info.status !== 'connected') this.setLatency(null)
     this.renderConnText()
     this.renderOverlay()
+  }
+
+  /** 手機量到的來回延遲；null 表示目前沒有連線 */
+  setLatency(ms: number | null): void {
+    this.latency.hidden = ms === null
+    if (ms === null) return
+    this.latency.textContent = `${Math.round(ms)}ms`
+    this.latency.dataset.level = latencyLevel(ms)
   }
 
   setDeck(deck: DeckSummary | null): void {
@@ -83,6 +121,7 @@ export class RemoteView {
     this.warning.textContent = deck?.warning ?? ''
     this.warning.hidden = !deck?.warning
     this.step.hidden = true
+    if (!deck) this.closeSheets()
     this.renderMiddleButton()
     this.renderOverlay()
     this.renderSlides()
@@ -90,7 +129,8 @@ export class RemoteView {
 
   setState(state: RemoteState): void {
     this.state = state
-    this.elapsed = state.elapsedMs === null ? null : { ms: state.elapsedMs, at: performance.now() }
+    this.elapsed =
+      state.elapsedMs === null ? null : { ms: state.elapsedMs, at: performance.now(), running: state.timerRunning !== false }
     this.root.dataset.blank = state.blank
     this.renderMiddleButton()
     const clicks = state.clicks
@@ -99,16 +139,81 @@ export class RemoteView {
     this.renderConnText()
     this.renderSlides()
     this.renderTime()
+    if (!this.jumpSheet.hidden) this.markJumpCurrent()
   }
 
   setThumb(index: number, jpeg: ArrayBuffer | Uint8Array): void {
     const old = this.thumbs.get(index)
     if (old) URL.revokeObjectURL(old)
     const bytes = jpeg instanceof Uint8Array ? jpeg : new Uint8Array(jpeg)
-    this.thumbs.set(index, URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'image/jpeg' })))
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'image/jpeg' }))
+    this.thumbs.set(index, url)
     const at = this.state?.index ?? 0
     if (index === at || index === at + 1) this.renderFrames()
+    // 跳頁清單開著時，縮圖到了就補上
+    const slot = this.jumpList.querySelector<HTMLElement>(`[data-index="${index}"] .r-jump-thumb`)
+    if (slot) slot.replaceChildren(this.thumbImage(url, index))
   }
+
+  // ---------- 跳頁清單與計時器 ----------
+
+  private openJump(): void {
+    const deck = this.deck
+    if (!deck || this.connection?.status !== 'connected') return
+    const items = Array.from({ length: deck.count }, (_, i) => {
+      const li = document.createElement('li')
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'r-jump-item'
+      button.dataset.index = String(i)
+      const thumb = document.createElement('span')
+      thumb.className = 'r-jump-thumb'
+      const url = this.thumbs.get(i)
+      if (url) thumb.append(this.thumbImage(url, i))
+      const label = document.createElement('span')
+      label.className = 'r-jump-label'
+      const num = document.createElement('b')
+      num.textContent = String(i + 1)
+      label.append(num, ` ${deck.pages?.[i]?.title || ''}`)
+      button.append(thumb, label)
+      li.append(button)
+      return li
+    })
+    this.jumpList.replaceChildren(...items)
+    this.openSheet(this.jumpSheet)
+    this.markJumpCurrent()
+    this.jumpList.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'center' })
+  }
+
+  private markJumpCurrent(): void {
+    const index = String(this.state?.index ?? 0)
+    for (const item of this.jumpList.querySelectorAll<HTMLElement>('[data-index]')) {
+      if (item.dataset.index === index) item.setAttribute('aria-current', 'true')
+      else item.removeAttribute('aria-current')
+    }
+  }
+
+  private thumbImage(url: string, index: number): HTMLImageElement {
+    const img = document.createElement('img')
+    img.src = url
+    img.alt = `第 ${index + 1} 頁`
+    return img
+  }
+
+  private openSheet(sheet: HTMLElement): void {
+    this.closeSheets()
+    this.backdrop.hidden = false
+    sheet.hidden = false
+    this.renderTime()
+  }
+
+  private closeSheets(): void {
+    this.backdrop.hidden = true
+    this.jumpSheet.hidden = true
+    this.timerSheet.hidden = true
+  }
+
+  // ---------- 狀態列 ----------
 
   private renderMiddleButton(): void {
     const blank = this.state?.blank ?? 'off'
@@ -159,6 +264,8 @@ export class RemoteView {
     this.overlay.hidden = false
   }
 
+  // ---------- 投影片與備忘稿 ----------
+
   private renderSlides(): void {
     const deck = this.deck
     const index = this.state?.index ?? 0
@@ -189,10 +296,7 @@ export class RemoteView {
     const img = frame.querySelector('img')
     if (url) {
       if (img?.src === url) return
-      const next = document.createElement('img')
-      next.src = url
-      next.alt = `第 ${index + 1} 頁`
-      frame.replaceChildren(next)
+      frame.replaceChildren(this.thumbImage(url, index))
       frame.dataset.empty = 'false'
     } else {
       frame.replaceChildren(index < 0 && emptyText ? messageParagraph(emptyText, 'r-frame-text') : '')
@@ -200,19 +304,21 @@ export class RemoteView {
     }
   }
 
+  // ---------- 計時 ----------
+
   private renderTime(): void {
-    if (this.elapsed) {
-      const total = Math.floor((this.elapsed.ms + performance.now() - this.elapsed.at) / 1000)
-      const h = Math.floor(total / 3600)
-      const m = Math.floor((total % 3600) / 60)
-      const s = String(total % 60).padStart(2, '0')
-      this.time.textContent = h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
-      this.time.title = '開始放映後經過的時間'
-    } else {
-      const now = new Date()
-      this.time.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
-      this.time.title = '現在時間'
-    }
+    const now = new Date()
+    const e = this.elapsed
+    const ms = e ? e.ms + (e.running ? performance.now() - e.at : 0) : null
+    this.time.textContent = ms === null ? formatClock(now) : formatDuration(ms)
+    this.time.dataset.paused = String(!!e && !e.running)
+    this.time.setAttribute('aria-label', ms === null ? `現在時間 ${formatClock(now)}，點一下開啟計時器` : `已經過 ${formatDuration(ms)}，點一下開啟計時器`)
+
+    if (this.timerSheet.hidden) return
+    this.timerBig.textContent = formatDuration(ms ?? 0)
+    this.timerBig.dataset.paused = String(!e || !e.running)
+    this.timerClock.textContent = `現在 ${formatClock(now)}`
+    this.timerToggle.textContent = !e ? '開始計時' : e.running ? '暫停' : '繼續'
   }
 
   private applySize(): void {

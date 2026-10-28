@@ -1,6 +1,7 @@
 // PowerPoint 模式：由電腦上的 PowerPoint 放映，網站只負責轉接手機指令、
 // 顯示目前頁與備忘稿。手機遙控沿用 RemoteHost，跟 PDF 模式完全一樣。
 import type { RemoteCommand } from '../core/protocol'
+import { Stopwatch } from '../core/stopwatch'
 import { KeyboardInput, type KeyAction } from '../display/keyboard'
 import type { PairingDialog } from '../display/pairing-dialog'
 import type { RemoteHost } from '../display/remote-host'
@@ -33,7 +34,7 @@ export class PowerPointSession {
   private state: BridgeState | null = null
   /** 手機上的頁碼（從 0 起算）；PowerPoint 停在放映結束畫面時沿用上一次的 */
   private index = 0
-  private startedAt: number | null = null
+  private readonly timer = new Stopwatch()
   private thumbs = new Map<number, Promise<ArrayBuffer>>()
   private urls = new Map<number, string>()
   private loading = new Set<number>()
@@ -96,7 +97,7 @@ export class PowerPointSession {
   }
 
   private setState(state: BridgeState): void {
-    if (state.running && this.startedAt === null) this.startedAt = performance.now()
+    if (state.running && !this.timer.started) this.timer.start()
     this.state = state
     if (this.deck) {
       const index = pageIndexOf(this.deck, state.slide)
@@ -107,10 +108,15 @@ export class PowerPointSession {
   }
 
   private pushShow(): void {
-    if (this.deck && this.state) this.remote.setShow(toShow(this.state, this.index, this.startedAt))
+    if (this.deck && this.state) this.remote.setShow(toShow(this.state, this.index, this.timer))
   }
 
   private fromRemote(cmd: RemoteCommand): void {
+    if (cmd.type === 'timer') {
+      if (cmd.action === 'toggle') this.timer.toggle()
+      else this.timer.reset()
+      return this.pushShow()
+    }
     if (!this.deck || !this.state) return
     const command = toBridgeCommand(cmd, this.deck, this.state)
     if (command) this.bridge.send(command)
@@ -137,6 +143,8 @@ export class PowerPointSession {
       case 'togglePairing':
         return this.pairing.toggle()
       case 'toggleFullscreen':
+      case 'startPresenter':
+        // PowerPoint 自己有全螢幕和簡報者檢視
         return
     }
   }
