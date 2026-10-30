@@ -34,7 +34,7 @@ SDK="$(xcrun --sdk macosx --show-sdk-path)"
 
 BINARIES=()
 for ARCH in $ARCHS; do
-  echo "編譯 $ARCH…"
+  echo "編譯 ${ARCH}…"
   xcrun swiftc -swift-version 5 -O \
     -sdk "$SDK" -target "$ARCH-apple-macosx$MIN_MACOS" \
     -module-cache-path "$OUT/module-cache" \
@@ -54,5 +54,5 @@ mkdir -p "$ROOT/public/tools"
 cp "$ZIP" "$ROOT/public/tools/"
 
 echo ""
-echo "完成：$APP"
-echo "下載用的 zip：$ROOT/public/tools/$(basename "$ZIP")"
+echo "完成：${APP}"
+echo "下載用的 zip：${ROOT}/public/tools/$(basename "$ZIP")"
