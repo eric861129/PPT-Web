@@ -1,5 +1,5 @@
-// 網站與電腦上的橋接程式（public/tools/PPT-Web-Bridge.cmd）之間的訊息。
-// 橋接程式是 PowerShell 寫的，送來的 JSON 一律先整理、驗證再用。
+// 網站與電腦上的橋接程式之間的訊息。Windows 版是 PowerShell 寫的（public/tools/PPT-Web-Bridge.cmd），
+// Mac 版是 Swift 寫的（tools/mac-bridge），兩邊講同一套協定；送來的 JSON 一律先整理、驗證再用。
 import type { NoteParagraph } from '../core/deck'
 import type { BlankMode } from '../core/navigation'
 import { tidyNotes } from '../core/pptx'

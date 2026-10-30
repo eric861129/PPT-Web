@@ -23,14 +23,18 @@
 
 ### 用 PowerPoint 放映（完整動畫）
 
-PDF 會失去動畫。需要動畫時，改由電腦上的 PowerPoint 放映，手機照樣遙控、看備忘稿，還會顯示目前是第幾個動畫步驟。需要 Windows 和桌面版 PowerPoint。
+PDF 會失去動畫。需要動畫時，改由電腦上的 PowerPoint 放映，手機照樣遙控、看備忘稿，還會顯示目前是第幾個動畫步驟。需要 Windows 或 Mac，加上桌面版 PowerPoint。
 
-1. 在網站開始頁選「用 PowerPoint 放映」，下載 `PPT-Web-Bridge.cmd`，雙擊執行並讓它開著（第一次執行時 Windows 可能警告，選「其他資訊 → 仍要執行」）
+1. 在網站開始頁選「用 PowerPoint 放映」，下載橋接程式並讓它開著：
+   - Windows：下載 `PPT-Web-Bridge.cmd`，雙擊執行（第一次執行時 Windows 可能警告，選「其他資訊 → 仍要執行」）
+   - Mac：下載 `PPT-Web-Bridge-Mac.zip`，解壓縮後打開「PPT-Web Bridge」。第一次打開時 macOS 會擋下來，到「系統設定 → 隱私權與安全性」按「強制打開」；macOS 問是否允許控制「Microsoft PowerPoint」時選「好」
 2. 用 PowerPoint 打開簡報
 3. 網站會自動連上；瀏覽器詢問是否允許存取這台裝置上的其他應用程式時選「允許」
 4. 按「手機遙控」配對手機，從網站、手機或 PowerPoint 開始放映都可以
 
 橋接程式只接受這台電腦、而且只接受 PPT-Web 網站的連線。放映期間網站分頁要開著，可以放在 PowerPoint 後面。
+
+Mac 版的限制：要用 Chrome、Edge 或 Firefox 打開網站（Safari 不讓網頁連到這台電腦上的程式）；手機上不會顯示第幾個動畫步驟；跳頁時如果 PowerPoint 不接受直接跳頁，會一步一步翻過去。
 
 ## 開發
 
@@ -51,6 +55,14 @@ npm run build      # 輸出到 dist/
 npx peer --port 9000
 VITE_PEER_SERVER=http://localhost:9000/ npm run dev
 ```
+
+Mac 版橋接程式的原始碼在 `tools/mac-bridge/`（Swift）。在 Mac 上編譯（需要 Xcode 或 Command Line Tools），編好的 zip 會放進 `public/tools/`，`npm run dev` 時網站就能下載：
+
+```bash
+bash tools/mac-bridge/build.sh
+```
+
+部署時 GitHub Actions 會在 macOS 上編一份同時支援 Apple 晶片和 Intel 的版本。
 
 測試用的範例簡報在 `tests/fixtures/`。要重新產生（需要 Windows 和 PowerPoint）：
 

@@ -1,0 +1,27 @@
+name: Mac bridge
+
+# 編譯 Mac 版橋接程式（tools/mac-bridge）。部署時由 deploy.yml 呼叫，
+# 其他分支改到橋接程式時也會單獨編一次，確認編譯得過；編好的 zip 可以從這次執行的 Artifacts 下載
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths: ['tools/mac-bridge/**', '.github/workflows/mac-bridge.yml']
+  pull_request:
+    paths: ['tools/mac-bridge/**', '.github/workflows/mac-bridge.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash tools/mac-bridge/build.sh --universal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-bridge
+          path: tools/mac-bridge/build/PPT-Web-Bridge-Mac.zip
+          if-no-files-found: error

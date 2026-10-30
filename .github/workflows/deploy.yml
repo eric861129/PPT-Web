@@ -15,10 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  mac-bridge:
+    uses: ./.github/workflows/mac-bridge.yml
+
   build:
+    needs: mac-bridge
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # Mac 版橋接程式放進 public/tools/，跟 PPT-Web-Bridge.cmd 一起部署
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-bridge
+          path: public/tools
       - uses: actions/setup-node@v5
         with:
           node-version: 24

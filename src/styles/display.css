@@ -1062,6 +1062,25 @@
   font-weight: 600;
 }
 
+.ppt-warning {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #f2c46d;
+  border-radius: var(--radius);
+  color: #f2c46d;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ppt-os-switch {
+  margin: -8px 0 16px;
+  font-size: 13px;
+}
+
+.ppt-os-switch .link-btn {
+  margin-left: 0;
+}
+
 .ppt-setup-card .muted,
 .ppt-steps .muted {
   display: block;

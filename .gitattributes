@@ -2,3 +2,5 @@
 *.cmd text eol=crlf
 *.pptx binary
 *.pdf binary
+# Mac 上執行的腳本一律用 LF
+*.sh text eol=lf

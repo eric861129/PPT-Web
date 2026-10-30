@@ -155,14 +155,23 @@
       <section id="ppt-setup" class="ppt-setup">
         <div class="ppt-setup-card">
           <h2>連接這台電腦上的 PowerPoint</h2>
+          <p id="ppt-safari" class="ppt-warning" hidden>Safari 連不到這台電腦上的橋接程式，請改用 Chrome、Edge 或 Firefox 打開這個網站。</p>
           <ol class="ppt-steps">
-            <li>
+            <li data-os="windows">
               <a href="./tools/PPT-Web-Bridge.cmd" download>下載橋接程式 PPT-Web-Bridge.cmd</a>，雙擊執行並讓它開著。
               <span class="muted">第一次執行時 Windows 可能跳出警告，選「其他資訊 → 仍要執行」。</span>
+            </li>
+            <li data-os="mac" hidden>
+              <a href="./tools/PPT-Web-Bridge-Mac.zip" download>下載 Mac 版橋接程式</a>，解壓縮後打開「PPT-Web Bridge」並讓它開著。
+              <span class="muted">第一次打開時 macOS 會說無法確認開發者：到「系統設定 → 隱私權與安全性」，在下方按「強制打開」。接著 macOS 問是否允許控制「Microsoft PowerPoint」時選「好」。</span>
             </li>
             <li>用 PowerPoint 打開你的簡報。</li>
             <li>瀏覽器如果詢問是否允許這個網站存取這台裝置上的其他應用程式，請選「允許」。</li>
           </ol>
+          <p class="ppt-os-switch">
+            <button type="button" class="link-btn" data-os-switch="mac">用 Mac？看 Mac 的步驟</button>
+            <button type="button" class="link-btn" data-os-switch="windows" hidden>用 Windows？看 Windows 的步驟</button>
+          </p>
           <p id="ppt-status" class="pair-status" data-status="starting">
             <span class="status-dot" aria-hidden="true"></span><span id="ppt-status-text"></span>
           </p>

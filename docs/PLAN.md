@@ -1,6 +1,6 @@
 # PPT-Web 簡報工作站：規劃與設計
 
-> 狀態：M0–M4、PowerPoint 模式、觀眾同步完成；下一步：實機測試，M5／M6 依需求挑
+> 狀態：M0–M4、PowerPoint 模式、觀眾同步完成；Mac 版橋接程式寫好待實測；下一步：實機測試，M5／M6 依需求挑
 > 最後更新：2026-10-28
 
 ## 1. 目標
@@ -108,6 +108,22 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子，而瀏覽器�
 - 黑幕時按翻頁只會先回到畫面，跟 PDF 模式一致；還沒放映時按翻頁會移動 PowerPoint 編輯畫面裡選到的投影片
 - 手機看到的頁碼只算會放映的投影片（隱藏頁不算），跟 PDF 模式一致；手機上會多顯示「動畫 1 / 3」，還沒放映時中間的按鈕變成「從這頁放映」
 
+**Mac 版橋接程式**（`tools/mac-bridge/`）
+
+```
+手機 ──WebRTC──▶ 電腦瀏覽器（網站）──ws://127.0.0.1:48210──▶ PPT-Web Bridge.app ──AppleScript──▶ PowerPoint
+```
+
+Mac 的 PowerPoint 沒有 COM，改用 AppleScript 控制；跟 Windows 版講同一套橋接訊息，網站只需要依電腦顯示對的下載和步驟。
+
+- Swift 寫的小程式（AppKit 視窗顯示狀態，跟 Windows 版的主控台一樣），用 Network.framework 架 WebSocket 伺服器：只接受 loopback 介面的連線，握手時一樣檢查 `Origin`
+- 用 NSAppleScript 在主執行緒控制 PowerPoint，每段腳本都設逾時；用 `NSWorkspace` 確認 PowerPoint 開著才送 Apple 事件，不會自己把 PowerPoint 叫起來
+- PowerPoint 每一版的 AppleScript 字典不太一樣，字典裡沒有的詞會讓整段腳本無法編譯，所以讀狀態、讀簡報都準備退一步的寫法（例如讀不到黑幕狀態就不支援黑幕），隱藏投影片、長寬比讀不到就用預設值，並在視窗上說明
+- `go to slide` 在部分版本會回參數錯誤（-50），跳頁失敗時改用 `go to next slide` / `go to previous slide` 一步一步翻過去
+- AppleScript 不能匯出單張投影片，縮圖改成第一次需要時請 PowerPoint 把整份簡報存成 PDF（用 osascript 在背景跑，不卡住主執行緒），再用 Core Graphics 把每頁畫成 JPEG。PowerPoint 在沙盒裡，PDF 存在它自己的資料夾（`~/Library/Containers/com.microsoft.Powerpoint/Data`）；PDF 通常不含隱藏投影片，頁數等於投影片數就照順序、等於會放映的張數就跳過隱藏頁
+- 開著 App Nap 的話視窗在背景時計時器會被放慢，所以用 `beginActivity(.latencyCritical)` 關掉
+- 編譯用 `tools/mac-bridge/build.sh`，GitHub Actions（`mac-bridge.yml`）在 macOS 上編出 Apple 晶片和 Intel 的通用版，部署時放進 `public/tools/PPT-Web-Bridge-Mac.zip`。只有 ad-hoc 簽章，沒有 Apple 開發者簽章和公證
+
 **橋接訊息**（`src/powerpoint/protocol.ts`，收到的 JSON 一律先整理驗證；PowerShell 的 `ConvertTo-Json` 偶爾把單一元素陣列寫成物件，也照樣讀得懂）
 
 | 方向 | type | 內容 |
@@ -121,10 +137,13 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子，而瀏覽器�
 
 **限制**
 
-- 只支援 Windows 加上桌面版 PowerPoint；Mac 的 PowerPoint 沒有 COM
+- 需要 Windows 或 Mac 加上桌面版 PowerPoint
 - 放映期間瀏覽器的網站分頁要開著（可以放在 PowerPoint 後面，不能關掉）
 - Chrome / Edge 第一次連本機橋接程式時，可能會詢問是否允許網站存取這台裝置上的其他應用程式，要選允許
 - 從網站下載的 `.cmd`，第一次執行時 Windows SmartScreen 可能警告未知發行者
+- Mac 版沒有開發者簽章，第一次打開時 macOS 會擋下來，要到「系統設定 → 隱私權與安全性」按「強制打開」；之後還會問是否允許控制 PowerPoint，第一次匯出縮圖時可能問是否允許取用其他 App 的資料
+- Mac 上不能用 Safari：Safari 不讓 https 網頁連 `ws://127.0.0.1`（WebKit bug 171934），設定頁會提醒改用 Chrome、Edge 或 Firefox
+- Mac 版讀不到動畫步驟和備忘稿的縮排層級：手機不顯示「動畫 1 / 3」，備忘稿都當第 0 層
 - 縮圖是投影片動畫全部播完的樣子；投影幕上的畫面才是當下的動畫狀態
 
 ## 4. 系統架構
@@ -252,7 +271,7 @@ PDF 只會留下每張投影片「動畫全部播完」的樣子，而瀏覽器�
 
 **手機遙控視窗**（M3 完成）：上方「手機遙控」按鈕或按 `Q` 開啟，顯示 QR Code、網址（可複製）、連線狀態、「中斷所有手機」。放映中按 `Q` 不會開，避免 QR Code 出現在投影幕上。按鈕上的綠色數字是已連線的手機數，手機連上或斷線時會跳出提示。
 
-**PowerPoint 模式**（完成）：開始頁的「用 PowerPoint 放映」進入，網址會記成 `#powerpoint`，重新整理後還在同一個模式。沒連上橋接程式時顯示下載與設定步驟；連上後顯示目前投影片（含動畫步驟）、下一張、備忘稿（可調字級）、上一步／黑幕／下一步、從頭放映／從目前頁放映／結束放映。鍵盤和 PDF 模式一樣：方向鍵、`F5`、`Shift`+`F5`、`Esc`、`B`、數字 + `Enter`、`Q`。
+**PowerPoint 模式**（完成）：開始頁的「用 PowerPoint 放映」進入，網址會記成 `#powerpoint`，重新整理後還在同一個模式。沒連上橋接程式時顯示下載與設定步驟（依電腦顯示 Windows 或 Mac 的版本，可以手動切換；用 Safari 時提醒改用別的瀏覽器）；連上後顯示目前投影片（含動畫步驟）、下一張、備忘稿（可調字級）、上一步／黑幕／下一步、從頭放映／從目前頁放映／結束放映。鍵盤和 PDF 模式一樣：方向鍵、`F5`、`Shift`+`F5`、`Esc`、`B`、數字 + `Enter`、`Q`。
 
 ### 6.2 遙控端（手機，直式，M3 完成）
 
@@ -352,6 +371,7 @@ PPT-Web/
 │  │  ├─ protocol.ts          與橋接程式之間的訊息、驗證
 │  │  ├─ mapping.ts           投影片編號 ↔ 手機頁碼、指令轉換
 │  │  ├─ bridge-client.ts     連到本機橋接程式、重連、縮圖請求
+│  │  ├─ platform.ts          依電腦顯示 Windows／Mac 的橋接程式、認出 Safari
 │  │  └─ session.ts           PowerPoint 模式的畫面
 │  ├─ shared/
 │  │  ├─ dom.ts               共用的 DOM 與偏好設定小工具
@@ -363,11 +383,12 @@ PPT-Web/
 ├─ scripts/
 │  ├─ copy-pdfjs-assets.mjs
 │  └─ make-sample-deck.ps1    用 PowerPoint 產生測試用範例簡報
+├─ tools/mac-bridge/          Mac 版橋接程式（Swift + AppleScript），build.sh 編成 .app 和 zip
 ├─ tests/
 │  ├─ fixtures/               sample-deck.pptx / .pdf
 │  └─ *.test.ts
 ├─ docs/PLAN.md
-└─ .github/workflows/deploy.yml
+└─ .github/workflows/         deploy.yml；mac-bridge.yml 在 macOS 上編 Mac 版橋接程式
 ```
 
 ## 9. 開發里程碑
@@ -381,6 +402,7 @@ PPT-Web/
 | **PowerPoint 模式** ✅ | 橋接程式、網站的 PowerPoint 模式、手機顯示動畫步驟與「從這頁放映」 | 實測（真實 PowerPoint + 橋接程式 + PeerJS）：手機按下一步到 PowerPoint 換頁並回報約 80–115ms；從手機開始放映 0.35 秒；動畫逐步、隱藏頁跳過、黑幕、跳頁、結束、電腦端重新整理後手機 2.2 秒連回 |
 | **M4 打磨與講者檢視** ✅ | 計時器暫停／重設、跳頁清單、最近簡報、重新整理後恢復、連線延遲（連線測試）、電腦端講者檢視 | 實測：觀眾視窗跟著翻頁、按鍵轉回主視窗、黑幕、計時暫停／重設兩端同步、重新整理後自動恢復簡報且手機連回、最近清單開啟與移除。實機手機鎖屏與真正的雙螢幕還要現場驗證 |
 | **觀眾同步** ✅ | 觀眾掃 QR Code 在手機上跟著看、往回翻看講過的頁；QR Code 投到大螢幕、下載；停止／重新開放；PDF 與 PowerPoint 模式 | 實測（真實 PeerJS，21 支模擬手機）：翻頁後所有觀眾約 0.1 秒內同步；20 支手機同時加入約 5.6 秒全部看到目前頁；中途加入只拿得到講過的頁 |
+| **Mac 版橋接程式**（待實測） | AppleScript 控制 Mac 的 PowerPoint、PDF 轉縮圖、網站依電腦顯示步驟、Safari 提醒、GitHub Actions 編譯 | 在真的 Mac + PowerPoint 上跑完整流程：翻頁、黑幕、跳頁、從這頁放映、結束、備忘稿、隱藏頁、縮圖 |
 | **M5 動畫步驟匯出工具**（備選） | 放映的電腦沒有 PowerPoint 時用：預先把每個動畫步驟畫成圖片打包 | 範例檔的逐項出現動畫逐步播放 |
 | **M6 選配** | PWA、TURN 設定、備援 transport、雷射筆 | 依需求挑 |
 

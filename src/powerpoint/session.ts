@@ -10,6 +10,7 @@ import type { ViewerHost } from '../display/viewer-host'
 import { byId, listen, loadPref, messageParagraph, renderNoteParagraphs, savePref } from '../shared/dom'
 import { BridgeClient, type BridgeStatus } from './bridge-client'
 import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, toViewerShow, visibleSlides } from './mapping'
+import { bridgeOs, currentBrowser, isSafari, type BridgeOs } from './platform'
 import { VIEW_BLACK, VIEW_DONE, VIEW_WHITE, type BridgeCommand, type BridgeDeck, type BridgeMessage, type BridgeState } from './protocol'
 
 /** 電腦預覽、遙控手機和觀眾手機共用同一份縮圖；1280 是橋接程式的上限，觀眾兩指放大也看得清楚 */
@@ -46,6 +47,9 @@ export class PowerPointSession {
   private loading = new Set<number>()
   private noteSize: number
   private shownNotes = -1
+  /** 設定頁顯示哪一種電腦的橋接程式；使用者可以自己切換 */
+  private os: BridgeOs
+  private readonly safari: boolean
 
   constructor({ root, remote, pairing, viewers, viewerDialog, onClose, bridge }: PowerPointSessionOptions) {
     this.root = root
@@ -58,6 +62,11 @@ export class PowerPointSession {
 
     const saved = NOTE_SIZES.indexOf(Number(loadPref('ppt-notes-size')))
     this.noteSize = saved >= 0 ? saved : NOTE_SIZES.indexOf(DEFAULT_NOTE_SIZE)
+    const browser = currentBrowser()
+    this.os = bridgeOs(browser)
+    this.safari = isSafari(browser.userAgent)
+    byId('ppt-safari').hidden = !this.safari
+    this.applyOs()
 
     this.bridge.onStatus = () => this.render()
     this.bridge.onMessage = (msg) => this.receive(msg)
@@ -238,7 +247,11 @@ export class PowerPointSession {
     const text = byId('ppt-status-text')
     if (status !== 'connected') {
       line.dataset.status = status === 'offline' ? 'offline' : 'starting'
-      text.textContent = status === 'offline' ? '找不到橋接程式。請執行 PPT-Web-Bridge.cmd，並讓它開著。' : '正在尋找橋接程式…'
+      const missing =
+        this.safari ? '連不到橋接程式。Safari 不支援，請改用 Chrome、Edge 或 Firefox。'
+        : this.os === 'mac' ? '找不到橋接程式。請打開 PPT-Web Bridge，並讓它開著。'
+        : '找不到橋接程式。請執行 PPT-Web-Bridge.cmd，並讓它開著。'
+      text.textContent = status === 'offline' ? missing : '正在尋找橋接程式…'
     } else if (!this.state?.powerpoint) {
       line.dataset.status = 'ready'
       text.textContent = '已連上橋接程式。請打開 PowerPoint。'
@@ -302,6 +315,11 @@ export class PowerPointSession {
     body.scrollTop = 0
   }
 
+  private applyOs(): void {
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-os]')) el.hidden = el.dataset.os !== this.os
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-os-switch]')) el.hidden = el.dataset.osSwitch === this.os
+  }
+
   private applyNoteSize(): void {
     byId('ppt-notes').style.setProperty('--notes-size', `${NOTE_SIZES[this.noteSize]}px`)
   }
@@ -324,6 +342,13 @@ export class PowerPointSession {
     on(byId('ppt-prev'), 'click', () => this.send({ type: 'prev' }))
     on(byId('ppt-next-btn'), 'click', () => this.send({ type: 'next' }))
     on(byId('ppt-blank'), 'click', () => this.send({ type: 'toggleBlank', mode: 'black' }))
+    for (const button of this.root.querySelectorAll<HTMLButtonElement>('[data-os-switch]')) {
+      on(button, 'click', () => {
+        this.os = button.dataset.osSwitch === 'mac' ? 'mac' : 'windows'
+        this.applyOs()
+        this.render()
+      })
+    }
     for (const button of this.root.querySelectorAll<HTMLButtonElement>('.ppt-size-btn')) {
       on(button, 'click', () => {
         this.noteSize = Math.min(NOTE_SIZES.length - 1, Math.max(0, this.noteSize + Number(button.dataset.step)))

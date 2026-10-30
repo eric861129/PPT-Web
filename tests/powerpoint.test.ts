@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseRemoteMessage } from '../src/core/protocol'
 import { BridgeClient } from '../src/powerpoint/bridge-client'
 import { pageIndexOf, toBridgeCommand, toDeckSummary, toShow, toViewerShow, visibleSlides } from '../src/powerpoint/mapping'
+import { bridgeOs, isSafari } from '../src/powerpoint/platform'
 import { parseBridgeMessage, type BridgeDeck, type BridgeState } from '../src/powerpoint/protocol'
 
 const deck: BridgeDeck = {
@@ -238,5 +239,31 @@ describe('BridgeClient', () => {
     client.stop()
     vi.advanceTimersByTime(10000)
     expect(FakeSocket.instances).toHaveLength(1)
+  })
+})
+
+describe('choosing the bridge for this computer', () => {
+  const ua = {
+    macChrome: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+    macSafari: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15',
+    macFirefox: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0',
+    winEdge: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',
+    iPhone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1',
+  }
+
+  it('shows the Mac bridge on a Mac and the Windows one elsewhere', () => {
+    expect(bridgeOs({ userAgent: ua.macChrome, platform: 'MacIntel' })).toBe('mac')
+    expect(bridgeOs({ userAgent: ua.macFirefox })).toBe('mac')
+    expect(bridgeOs({ userAgent: ua.winEdge, platform: 'Win32' })).toBe('windows')
+    // iPad 的 Safari 也自稱 Macintosh
+    expect(bridgeOs({ userAgent: ua.macSafari, platform: 'MacIntel', maxTouchPoints: 5 })).toBe('windows')
+  })
+
+  it('spots Safari, which cannot reach ws://127.0.0.1 from an https page', () => {
+    expect(isSafari(ua.macSafari)).toBe(true)
+    expect(isSafari(ua.iPhone)).toBe(true)
+    expect(isSafari(ua.macChrome)).toBe(false)
+    expect(isSafari(ua.macFirefox)).toBe(false)
+    expect(isSafari(ua.winEdge)).toBe(false)
   })
 })

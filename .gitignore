@@ -5,3 +5,7 @@ public/pdfjs/
 *.log
 .DS_Store
 Thumbs.db
+
+# Mac 版橋接程式的編譯結果（tools/mac-bridge/build.sh）
+tools/mac-bridge/build/
+public/tools/PPT-Web-Bridge-Mac.zip
